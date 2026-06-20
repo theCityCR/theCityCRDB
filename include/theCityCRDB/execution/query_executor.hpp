@@ -1,13 +1,13 @@
 #pragma once
 
-#include "atlasdb/execution/query_result.hpp"
-#include "atlasdb/parser/ast.hpp"
-#include "atlasdb/storage/database.hpp"
+#include "theCityCRDB/execution/query_result.hpp"
+#include "theCityCRDB/parser/ast.hpp"
+#include "theCityCRDB/storage/database.hpp"
 
 #include <memory>
 #include <string>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 class QueryExecutor {
 public:
@@ -30,4 +30,4 @@ private:
     std::shared_ptr<Database> database_;
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

@@ -1,9 +1,9 @@
-#include "atlasdb/execution/query_executor.hpp"
+#include "theCityCRDB/execution/query_executor.hpp"
 
 #include <algorithm>
 #include <stdexcept>
 
-namespace atlasdb {
+namespace theCityCRDB {
 namespace {
 
 bool compare(const Value& left, ComparisonOperator op, const Value& right) {
@@ -167,4 +167,4 @@ std::shared_ptr<Table> QueryExecutor::requireTable(std::string_view tableName) c
     return table;
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

@@ -1,12 +1,12 @@
-#include "atlasdb/persistence/storage_manager.hpp"
+#include "theCityCRDB/persistence/storage_manager.hpp"
 
 #include <fstream>
 #include <stdexcept>
 
-namespace atlasdb {
+namespace theCityCRDB {
 namespace {
 
-constexpr std::string_view kMagic = "ATLASDB";
+constexpr std::string_view kMagic = "THECITYCRDB";
 constexpr std::uint32_t kVersion = 1;
 
 }  // namespace
@@ -31,4 +31,4 @@ bool StorageManager::metadataExists(std::string_view databaseName) const {
     return std::filesystem::exists(root_ / (std::string{databaseName} + ".adb"));
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

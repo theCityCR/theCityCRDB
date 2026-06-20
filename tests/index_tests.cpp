@@ -1,8 +1,8 @@
-#include "atlasdb/indexing/hash_index.hpp"
+#include "theCityCRDB/indexing/hash_index.hpp"
 
 #include <gtest/gtest.h>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 TEST(IndexTests, FindsInsertedRowIds) {
     HashIndex index;
@@ -15,4 +15,4 @@ TEST(IndexTests, FindsInsertedRowIds) {
     EXPECT_EQ(rowIds[1], 8U);
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

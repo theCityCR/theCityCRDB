@@ -2,7 +2,7 @@
 
 #include <shared_mutex>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 class LockManager {
 public:
@@ -13,4 +13,4 @@ private:
     std::shared_mutex mutex_;
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

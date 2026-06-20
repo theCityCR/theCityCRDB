@@ -1,9 +1,9 @@
-#include "atlasdb/indexing/hash_index.hpp"
+#include "theCityCRDB/indexing/hash_index.hpp"
 
 #include <algorithm>
 #include <mutex>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 void HashIndex::insert(const Value& key, RowId rowId) {
     std::unique_lock lock{mutex_};
@@ -37,4 +37,4 @@ std::size_t HashIndex::size() const {
     return entries_.size();
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

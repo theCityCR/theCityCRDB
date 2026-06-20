@@ -1,6 +1,6 @@
 # SQL Subset
 
-AtlasDB intentionally supports a small SQL subset first.
+theCityCRDB intentionally supports a small SQL subset first.
 
 ## Implemented in the Initial Scaffold
 

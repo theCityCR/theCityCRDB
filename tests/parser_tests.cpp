@@ -1,8 +1,8 @@
-#include "atlasdb/parser/parser.hpp"
+#include "theCityCRDB/parser/parser.hpp"
 
 #include <gtest/gtest.h>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 TEST(ParserTests, ParsesCreateTable) {
     Parser parser;
@@ -32,4 +32,4 @@ TEST(ParserTests, ParsesSelectWithPredicateAndLimit) {
     EXPECT_EQ(*command.limit, 5U);
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

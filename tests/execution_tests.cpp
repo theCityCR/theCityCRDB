@@ -1,9 +1,9 @@
-#include "atlasdb/execution/query_executor.hpp"
-#include "atlasdb/parser/parser.hpp"
+#include "theCityCRDB/execution/query_executor.hpp"
+#include "theCityCRDB/parser/parser.hpp"
 
 #include <gtest/gtest.h>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 TEST(ExecutionTests, InsertsAndSelectsRows) {
     Parser parser;
@@ -19,4 +19,4 @@ TEST(ExecutionTests, InsertsAndSelectsRows) {
     EXPECT_EQ(result.rows.front().front(), Value{std::string{"Alice"}});
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

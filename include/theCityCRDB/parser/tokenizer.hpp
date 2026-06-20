@@ -1,15 +1,15 @@
 #pragma once
 
-#include "atlasdb/parser/token.hpp"
+#include "theCityCRDB/parser/token.hpp"
 
 #include <string_view>
 #include <vector>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 class Tokenizer {
 public:
     [[nodiscard]] std::vector<Token> tokenize(std::string_view sql) const;
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

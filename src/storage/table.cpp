@@ -1,9 +1,9 @@
-#include "atlasdb/storage/table.hpp"
+#include "theCityCRDB/storage/table.hpp"
 
 #include <algorithm>
 #include <stdexcept>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 Table::Table(std::string name, std::vector<Column> schema)
     : name_(std::move(name)), schema_(std::move(schema)) {
@@ -82,4 +82,4 @@ void Table::validateRow(const Row& row) const {
     }
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

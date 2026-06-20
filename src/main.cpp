@@ -1,12 +1,12 @@
-#include "atlasdb/execution/query_executor.hpp"
-#include "atlasdb/parser/parser.hpp"
+#include "theCityCRDB/execution/query_executor.hpp"
+#include "theCityCRDB/parser/parser.hpp"
 
 #include <iostream>
 #include <sstream>
 
 namespace {
 
-void printResult(const atlasdb::QueryResult& result) {
+void printResult(const theCityCRDB::QueryResult& result) {
     if (!result.message.empty()) {
         std::cout << result.message << '\n';
     }
@@ -30,11 +30,11 @@ void printResult(const atlasdb::QueryResult& result) {
 }  // namespace
 
 int main() {
-    atlasdb::Parser parser;
-    atlasdb::QueryExecutor executor;
+    theCityCRDB::Parser parser;
+    theCityCRDB::QueryExecutor executor;
 
-    std::cout << "AtlasDB interactive shell. Type EXIT; to quit.\n";
-    for (std::string line; std::cout << "atlasdb> " && std::getline(std::cin, line);) {
+    std::cout << "theCityCRDB interactive shell. Type EXIT; to quit.\n";
+    for (std::string line; std::cout << "theCityCRDB> " && std::getline(std::cin, line);) {
         if (line.empty()) {
             continue;
         }

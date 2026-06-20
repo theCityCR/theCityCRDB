@@ -1,10 +1,10 @@
 #pragma once
 
-#include "atlasdb/storage/database.hpp"
+#include "theCityCRDB/storage/database.hpp"
 
 #include <filesystem>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 class StorageManager {
 public:
@@ -17,4 +17,4 @@ private:
     std::filesystem::path root_;
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

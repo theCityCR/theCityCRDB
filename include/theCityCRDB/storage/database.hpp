@@ -1,6 +1,6 @@
 #pragma once
 
-#include "atlasdb/storage/table.hpp"
+#include "theCityCRDB/storage/table.hpp"
 
 #include <map>
 #include <memory>
@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 class Database {
 public:
@@ -28,4 +28,4 @@ private:
     mutable std::shared_mutex mutex_;
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

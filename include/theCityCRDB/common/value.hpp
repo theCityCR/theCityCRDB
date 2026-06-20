@@ -7,7 +7,7 @@
 #include <string>
 #include <variant>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 enum class ColumnType : std::uint8_t {
     Int,
@@ -46,4 +46,4 @@ std::ostream& operator<<(std::ostream& os, const Value& value);
 std::string toString(ColumnType type);
 std::optional<ColumnType> columnTypeFromString(std::string_view text);
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

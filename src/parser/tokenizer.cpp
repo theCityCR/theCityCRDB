@@ -1,9 +1,9 @@
-#include "atlasdb/parser/tokenizer.hpp"
+#include "theCityCRDB/parser/tokenizer.hpp"
 
 #include <cctype>
 #include <stdexcept>
 
-namespace atlasdb {
+namespace theCityCRDB {
 namespace {
 
 bool isIdentifierStart(char ch) {
@@ -94,4 +94,4 @@ std::vector<Token> Tokenizer::tokenize(std::string_view sql) const {
     return tokens;
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

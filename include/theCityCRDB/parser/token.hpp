@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 enum class TokenType {
     Identifier,
@@ -24,4 +24,4 @@ struct Token {
     std::string lexeme;
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

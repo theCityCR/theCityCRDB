@@ -1,13 +1,13 @@
 #pragma once
 
-#include "atlasdb/common/value.hpp"
+#include "theCityCRDB/common/value.hpp"
 
 #include <optional>
 #include <string>
 #include <variant>
 #include <vector>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 enum class ComparisonOperator {
     Equal,
@@ -67,4 +67,4 @@ struct Exit {};
 using Query = std::variant<CreateDatabase, CreateTable, Insert, Select, Update, Delete, CreateIndex,
                            SaveDatabase, LoadDatabase, Exit>;
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

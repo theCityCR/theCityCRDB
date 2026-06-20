@@ -1,8 +1,8 @@
-#include "atlasdb/storage/database.hpp"
+#include "theCityCRDB/storage/database.hpp"
 
 #include <gtest/gtest.h>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 TEST(StorageTests, CreatesTableAndInsertsTypedRows) {
     Database database{"company"};
@@ -21,4 +21,4 @@ TEST(StorageTests, RejectsRowsWithWrongShape) {
     EXPECT_THROW(table.insert({Value{1}, Value{2}}), std::invalid_argument);
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

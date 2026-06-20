@@ -1,12 +1,12 @@
 #pragma once
 
-#include "atlasdb/parser/ast.hpp"
-#include "atlasdb/parser/token.hpp"
+#include "theCityCRDB/parser/ast.hpp"
+#include "theCityCRDB/parser/token.hpp"
 
 #include <span>
 #include <string_view>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 class Parser {
 public:
@@ -33,4 +33,4 @@ private:
     std::size_t current_{0};
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

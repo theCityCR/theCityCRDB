@@ -1,12 +1,12 @@
 #pragma once
 
-#include "atlasdb/storage/row.hpp"
+#include "theCityCRDB/storage/row.hpp"
 
 #include <map>
 #include <shared_mutex>
 #include <vector>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 class HashIndex {
 public:
@@ -20,4 +20,4 @@ private:
     mutable std::shared_mutex mutex_;
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

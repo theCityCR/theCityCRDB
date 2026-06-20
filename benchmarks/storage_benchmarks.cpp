@@ -1,8 +1,8 @@
-#include "atlasdb/storage/table.hpp"
+#include "theCityCRDB/storage/table.hpp"
 
 #include <benchmark/benchmark.h>
 
-namespace atlasdb {
+namespace theCityCRDB {
 namespace {
 
 void BM_InsertRows(benchmark::State& state) {
@@ -18,4 +18,4 @@ void BM_InsertRows(benchmark::State& state) {
 BENCHMARK(BM_InsertRows)->Arg(1000)->Arg(100000);
 
 }  // namespace
-}  // namespace atlasdb
+}  // namespace theCityCRDB

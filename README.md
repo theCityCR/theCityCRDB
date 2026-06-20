@@ -1,6 +1,6 @@
-# AtlasDB
+# theCityCRDB
 
-AtlasDB is a C++20 in-memory relational database engine built as a systems programming portfolio project. The goal is not to compete with production databases; the goal is to show credible engineering decisions around storage, parsing, indexing, persistence, concurrency, testing, and performance.
+theCityCRDB is a C++20 in-memory relational database engine built as a systems programming portfolio project. The goal is not to compete with production databases; the goal is to show credible engineering decisions around storage, parsing, indexing, persistence, concurrency, testing, and performance.
 
 ## Current Status
 
@@ -17,14 +17,14 @@ This repository contains the initial engineering scaffold:
 ## Build
 
 ```sh
-cmake -S . -B build -DATLASDB_BUILD_TESTS=OFF
+cmake -S . -B build -DTHECITYCRDB_BUILD_TESTS=OFF
 cmake --build build
 ```
 
 Tests use GoogleTest through CMake FetchContent:
 
 ```sh
-cmake -S . -B build -DATLASDB_BUILD_TESTS=ON
+cmake -S . -B build -DTHECITYCRDB_BUILD_TESTS=ON
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```

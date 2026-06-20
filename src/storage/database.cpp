@@ -1,8 +1,8 @@
-#include "atlasdb/storage/database.hpp"
+#include "theCityCRDB/storage/database.hpp"
 
 #include <stdexcept>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 Database::Database(std::string name) : name_(std::move(name)) {
     if (name_.empty()) {
@@ -66,4 +66,4 @@ std::vector<std::string> Database::listTables() const {
     return names;
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

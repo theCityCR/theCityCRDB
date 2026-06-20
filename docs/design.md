@@ -2,7 +2,7 @@
 
 ## Engineering Approach
 
-AtlasDB should be developed as a sequence of small, testable slices. Each phase should leave the project compiling, with focused tests and a short design note explaining tradeoffs.
+theCityCRDB should be developed as a sequence of small, testable slices. Each phase should leave the project compiling, with focused tests and a short design note explaining tradeoffs.
 
 ## Milestones
 

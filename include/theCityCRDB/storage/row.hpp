@@ -1,12 +1,12 @@
 #pragma once
 
-#include "atlasdb/common/value.hpp"
+#include "theCityCRDB/common/value.hpp"
 
 #include <vector>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 using Row = std::vector<Value>;
 using RowId = std::size_t;
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

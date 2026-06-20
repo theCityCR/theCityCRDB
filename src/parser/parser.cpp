@@ -1,13 +1,13 @@
-#include "atlasdb/parser/parser.hpp"
+#include "theCityCRDB/parser/parser.hpp"
 
-#include "atlasdb/parser/tokenizer.hpp"
+#include "theCityCRDB/parser/tokenizer.hpp"
 
 #include <algorithm>
 #include <charconv>
 #include <cctype>
 #include <stdexcept>
 
-namespace atlasdb {
+namespace theCityCRDB {
 namespace {
 
 bool equalsIgnoreCase(std::string_view lhs, std::string_view rhs) {
@@ -280,4 +280,4 @@ Value Parser::parseValue() {
     throw std::runtime_error("expected literal value");
 }
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB

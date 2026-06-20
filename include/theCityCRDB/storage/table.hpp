@@ -1,7 +1,7 @@
 #pragma once
 
-#include "atlasdb/common/value.hpp"
-#include "atlasdb/storage/row.hpp"
+#include "theCityCRDB/common/value.hpp"
+#include "theCityCRDB/storage/row.hpp"
 
 #include <optional>
 #include <shared_mutex>
@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace atlasdb {
+namespace theCityCRDB {
 
 class Table {
 public:
@@ -34,4 +34,4 @@ private:
     mutable std::shared_mutex mutex_;
 };
 
-}  // namespace atlasdb
+}  // namespace theCityCRDB
