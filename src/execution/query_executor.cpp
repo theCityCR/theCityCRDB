@@ -18,6 +18,13 @@ bool compare(const Value& left, ComparisonOperator op, const Value& right) {
     return false;
 }
 
+QueryResult messageResult(bool success, std::string message) {
+    QueryResult result;
+    result.success = success;
+    result.message = std::move(message);
+    return result;
+}
+
 }  // namespace
 
 QueryResult QueryExecutor::execute(const Query& query) {
@@ -37,13 +44,13 @@ QueryResult QueryExecutor::execute(const Query& query) {
             } else if constexpr (std::is_same_v<Command, Delete>) {
                 return executeDelete(command);
             } else if constexpr (std::is_same_v<Command, CreateIndex>) {
-                return {true, "index creation is scaffolded for the index manager"};
+                return messageResult(true, "index creation is scaffolded for the index manager");
             } else if constexpr (std::is_same_v<Command, SaveDatabase>) {
-                return {true, "save is scaffolded for the persistence layer"};
+                return messageResult(true, "save is scaffolded for the persistence layer");
             } else if constexpr (std::is_same_v<Command, LoadDatabase>) {
-                return {true, "load is scaffolded for the persistence layer"};
+                return messageResult(true, "load is scaffolded for the persistence layer");
             } else if constexpr (std::is_same_v<Command, Exit>) {
-                return {true, "exit"};
+                return messageResult(true, "exit");
             }
         },
         query);
@@ -55,21 +62,21 @@ std::shared_ptr<Database> QueryExecutor::currentDatabase() const noexcept {
 
 QueryResult QueryExecutor::executeCreateDatabase(const CreateDatabase& command) {
     database_ = std::make_shared<Database>(command.name);
-    return {true, "created database " + command.name};
+    return messageResult(true, "created database " + command.name);
 }
 
 QueryResult QueryExecutor::executeCreateTable(const CreateTable& command) {
     if (!database_) {
-        return {false, "no active database"};
+        return messageResult(false, "no active database");
     }
     const bool created = database_->createTable(command.name, command.columns);
-    return {created, created ? "created table " + command.name : "table already exists"};
+    return messageResult(created, created ? "created table " + command.name : "table already exists");
 }
 
 QueryResult QueryExecutor::executeInsert(const Insert& command) {
     auto table = requireTable(command.table);
     table->insert(command.values);
-    return {true, "inserted 1 row"};
+    return messageResult(true, "inserted 1 row");
 }
 
 QueryResult QueryExecutor::executeSelect(const Select& command) {
@@ -129,7 +136,7 @@ QueryResult QueryExecutor::executeUpdate(const Update& command) {
             ++count;
         }
     }
-    return {true, "updated " + std::to_string(count) + " row(s)"};
+    return messageResult(true, "updated " + std::to_string(count) + " row(s)");
 }
 
 QueryResult QueryExecutor::executeDelete(const Delete& command) {
@@ -145,7 +152,7 @@ QueryResult QueryExecutor::executeDelete(const Delete& command) {
             ++count;
         }
     }
-    return {true, "deleted " + std::to_string(count) + " row(s)"};
+    return messageResult(true, "deleted " + std::to_string(count) + " row(s)");
 }
 
 bool QueryExecutor::matches(const Row& row, const Table& table, const Predicate& predicate) const {
