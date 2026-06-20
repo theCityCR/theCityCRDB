@@ -1,0 +1,70 @@
+#pragma once
+
+#include "atlasdb/common/value.hpp"
+
+#include <optional>
+#include <string>
+#include <variant>
+#include <vector>
+
+namespace atlasdb {
+
+enum class ComparisonOperator {
+    Equal,
+    Greater,
+    Less,
+};
+
+struct Predicate {
+    std::string column;
+    ComparisonOperator op;
+    Value value;
+};
+
+struct CreateDatabase {
+    std::string name;
+};
+
+struct CreateTable {
+    std::string name;
+    std::vector<Column> columns;
+};
+
+struct Insert {
+    std::string table;
+    std::vector<Value> values;
+};
+
+struct Select {
+    std::string table;
+    std::vector<std::string> columns;
+    std::optional<Predicate> where;
+    std::optional<std::size_t> limit;
+};
+
+struct Update {
+    std::string table;
+    std::string column;
+    Value value;
+    std::optional<Predicate> where;
+};
+
+struct Delete {
+    std::string table;
+    std::optional<Predicate> where;
+};
+
+struct CreateIndex {
+    std::string name;
+    std::string table;
+    std::string column;
+};
+
+struct SaveDatabase {};
+struct LoadDatabase {};
+struct Exit {};
+
+using Query = std::variant<CreateDatabase, CreateTable, Insert, Select, Update, Delete, CreateIndex,
+                           SaveDatabase, LoadDatabase, Exit>;
+
+}  // namespace atlasdb
