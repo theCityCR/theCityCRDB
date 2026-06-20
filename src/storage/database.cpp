@@ -43,6 +43,9 @@ bool Database::renameTable(std::string_view oldName, std::string newName) {
     for (const auto& row : oldTable->rowsSnapshot()) {
         replacement->insert(row);
     }
+    for (const auto& [indexName, columnName] : oldTable->indexDefinitions()) {
+        replacement->createIndex(indexName, columnName);
+    }
     tables_.emplace(std::move(newName), std::move(replacement));
     return true;
 }
@@ -64,6 +67,33 @@ std::vector<std::string> Database::listTables() const {
         names.push_back(name);
     }
     return names;
+}
+
+std::vector<std::shared_ptr<Table>> Database::tables() const {
+    std::shared_lock lock{mutex_};
+    std::vector<std::shared_ptr<Table>> result;
+    result.reserve(tables_.size());
+    for (const auto& [_, table] : tables_) {
+        result.push_back(table);
+    }
+    return result;
+}
+
+std::shared_ptr<Database> Database::clone() const {
+    auto copy = std::make_shared<Database>(name_);
+    for (const auto& sourceTable : tables()) {
+        std::vector<Column> schema{sourceTable->schema().begin(), sourceTable->schema().end()};
+        const bool created = copy->createTable(sourceTable->name(), std::move(schema));
+        if (!created) {
+            throw std::runtime_error("failed to clone table");
+        }
+        auto destinationTable = copy->table(sourceTable->name());
+        destinationTable->replaceRows(sourceTable->rowsSnapshot());
+        for (const auto& [indexName, columnName] : sourceTable->indexDefinitions()) {
+            destinationTable->createIndex(indexName, columnName);
+        }
+    }
+    return copy;
 }
 
 }  // namespace theCityCRDB

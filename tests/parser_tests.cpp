@@ -32,4 +32,27 @@ TEST(ParserTests, ParsesSelectWithPredicateAndLimit) {
     EXPECT_EQ(*command.limit, 5U);
 }
 
+TEST(ParserTests, ParsesOrderByAndTransactionCommands) {
+    Parser parser;
+
+    auto select = parser.parse("SELECT * FROM Employees ORDER BY salary DESC LIMIT 2;");
+    ASSERT_TRUE(std::holds_alternative<Select>(select));
+    const auto& command = std::get<Select>(select);
+    ASSERT_TRUE(command.orderBy.has_value());
+    EXPECT_EQ(command.orderBy->column, "salary");
+    EXPECT_FALSE(command.orderBy->ascending);
+
+    EXPECT_TRUE(std::holds_alternative<BeginTransaction>(parser.parse("BEGIN;")));
+    EXPECT_TRUE(std::holds_alternative<CommitTransaction>(parser.parse("COMMIT;")));
+    EXPECT_TRUE(std::holds_alternative<RollbackTransaction>(parser.parse("ROLLBACK;")));
+}
+
+TEST(ParserTests, ParsesTableManagementCommands) {
+    Parser parser;
+
+    EXPECT_TRUE(std::holds_alternative<DropTable>(parser.parse("DROP TABLE Employees;")));
+    EXPECT_TRUE(std::holds_alternative<RenameTable>(parser.parse("RENAME TABLE Employees TO Staff;")));
+    EXPECT_TRUE(std::holds_alternative<ListTables>(parser.parse("LIST TABLES;")));
+}
+
 }  // namespace theCityCRDB

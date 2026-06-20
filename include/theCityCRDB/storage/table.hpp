@@ -1,8 +1,10 @@
 #pragma once
 
 #include "theCityCRDB/common/value.hpp"
+#include "theCityCRDB/indexing/hash_index.hpp"
 #include "theCityCRDB/storage/row.hpp"
 
+#include <map>
 #include <optional>
 #include <shared_mutex>
 #include <span>
@@ -19,18 +21,29 @@ public:
     [[nodiscard]] std::span<const Column> schema() const noexcept;
     [[nodiscard]] std::optional<std::size_t> columnIndex(std::string_view column) const;
     [[nodiscard]] std::vector<Row> rowsSnapshot() const;
+    [[nodiscard]] std::vector<Row> rowsById(std::span<const RowId> rowIds) const;
     [[nodiscard]] std::size_t rowCount() const;
+    [[nodiscard]] std::vector<RowId> findIndexed(std::string_view column, const Value& value) const;
+    [[nodiscard]] std::optional<std::vector<RowId>> indexedLookup(std::string_view column,
+                                                                  const Value& value) const;
+    [[nodiscard]] std::vector<std::string> listIndexes() const;
+    [[nodiscard]] std::vector<std::pair<std::string, std::string>> indexDefinitions() const;
 
     RowId insert(Row row);
     bool erase(RowId rowId);
     bool update(RowId rowId, std::size_t columnIndex, Value value);
+    bool createIndex(std::string name, std::string column);
+    void replaceRows(std::vector<Row> rows);
 
 private:
     void validateRow(const Row& row) const;
+    void rebuildIndexes();
 
     std::string name_;
     std::vector<Column> schema_;
     std::vector<Row> rows_;
+    std::map<std::string, std::size_t> indexColumns_;
+    std::map<std::string, HashIndex> indexes_;
     mutable std::shared_mutex mutex_;
 };
 

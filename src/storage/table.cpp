@@ -1,6 +1,7 @@
 #include "theCityCRDB/storage/table.hpp"
 
 #include <algorithm>
+#include <mutex>
 #include <stdexcept>
 
 namespace theCityCRDB {
@@ -38,16 +39,70 @@ std::vector<Row> Table::rowsSnapshot() const {
     return rows_;
 }
 
+std::vector<Row> Table::rowsById(std::span<const RowId> rowIds) const {
+    std::shared_lock lock{mutex_};
+    std::vector<Row> rows;
+    rows.reserve(rowIds.size());
+    for (const auto rowId : rowIds) {
+        if (rowId < rows_.size()) {
+            rows.push_back(rows_[rowId]);
+        }
+    }
+    return rows;
+}
+
 std::size_t Table::rowCount() const {
     std::shared_lock lock{mutex_};
     return rows_.size();
+}
+
+std::vector<RowId> Table::findIndexed(std::string_view column, const Value& value) const {
+    auto result = indexedLookup(column, value);
+    if (!result) {
+        return {};
+    }
+    return *result;
+}
+
+std::optional<std::vector<RowId>> Table::indexedLookup(std::string_view column, const Value& value) const {
+    std::shared_lock lock{mutex_};
+    for (const auto& [indexName, columnIndex] : indexColumns_) {
+        if (schema_[columnIndex].name == column) {
+            return indexes_.at(indexName).find(value);
+        }
+    }
+    return std::nullopt;
+}
+
+std::vector<std::string> Table::listIndexes() const {
+    std::shared_lock lock{mutex_};
+    std::vector<std::string> names;
+    names.reserve(indexes_.size());
+    for (const auto& [name, _] : indexes_) {
+        names.push_back(name);
+    }
+    return names;
+}
+
+std::vector<std::pair<std::string, std::string>> Table::indexDefinitions() const {
+    std::shared_lock lock{mutex_};
+    std::vector<std::pair<std::string, std::string>> definitions;
+    definitions.reserve(indexColumns_.size());
+    for (const auto& [name, columnIndex] : indexColumns_) {
+        definitions.emplace_back(name, schema_[columnIndex].name);
+    }
+    return definitions;
 }
 
 RowId Table::insert(Row row) {
     validateRow(row);
     std::unique_lock lock{mutex_};
     rows_.push_back(std::move(row));
-    return rows_.size() - 1;
+    const RowId rowId = rows_.size() - 1;
+    for (auto& [name, index] : indexes_) {
+        index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
+    }
+    return rowId;
 }
 
 bool Table::erase(RowId rowId) {
@@ -56,6 +111,7 @@ bool Table::erase(RowId rowId) {
         return false;
     }
     rows_.erase(rows_.begin() + static_cast<std::ptrdiff_t>(rowId));
+    rebuildIndexes();
     return true;
 }
 
@@ -68,7 +124,35 @@ bool Table::update(RowId rowId, std::size_t index, Value value) {
         throw std::invalid_argument("updated value does not match column type");
     }
     rows_[rowId][index] = std::move(value);
+    rebuildIndexes();
     return true;
+}
+
+bool Table::createIndex(std::string name, std::string column) {
+    auto indexColumn = columnIndex(column);
+    if (!indexColumn) {
+        return false;
+    }
+
+    std::unique_lock lock{mutex_};
+    if (indexes_.contains(name)) {
+        return false;
+    }
+    indexColumns_.emplace(name, *indexColumn);
+    indexes_.try_emplace(name);
+    for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
+        indexes_.at(name).insert(rows_[rowId][*indexColumn], rowId);
+    }
+    return true;
+}
+
+void Table::replaceRows(std::vector<Row> rows) {
+    for (const auto& row : rows) {
+        validateRow(row);
+    }
+    std::unique_lock lock{mutex_};
+    rows_ = std::move(rows);
+    rebuildIndexes();
 }
 
 void Table::validateRow(const Row& row) const {
@@ -78,6 +162,17 @@ void Table::validateRow(const Row& row) const {
     for (std::size_t i = 0; i < row.size(); ++i) {
         if (row[i].type() != schema_[i].type) {
             throw std::invalid_argument("row value does not match column type");
+        }
+    }
+}
+
+void Table::rebuildIndexes() {
+    for (auto& [_, index] : indexes_) {
+        index.clear();
+    }
+    for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
+        for (auto& [name, index] : indexes_) {
+            index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
         }
     }
 }

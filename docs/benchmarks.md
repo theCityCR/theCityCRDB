@@ -11,6 +11,10 @@ Benchmarks should be added alongside the features they measure.
 - Update and delete throughput.
 - Concurrent read scaling.
 
+The current benchmark target includes insert throughput, indexed point lookup, and filtered
+indexed select. Additional update/delete/concurrency cases should be added as those paths are
+optimized.
+
 ## Reporting
 
 Benchmark output should be checked into documentation only as summarized tables or generated graphs, not raw build artifacts.

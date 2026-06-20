@@ -50,6 +50,16 @@ Query Parser::parse(std::span<const Token> tokens) {
         }
         throw std::runtime_error("expected DATABASE, TABLE, or INDEX after CREATE");
     }
+    if (match(TokenType::Identifier, "DROP")) {
+        return parseDropTable();
+    }
+    if (match(TokenType::Identifier, "RENAME")) {
+        return parseRenameTable();
+    }
+    if (match(TokenType::Identifier, "LIST")) {
+        expect(TokenType::Identifier, "TABLES");
+        return ListTables{};
+    }
     if (match(TokenType::Identifier, "INSERT")) {
         return parseInsert();
     }
@@ -68,7 +78,19 @@ Query Parser::parse(std::span<const Token> tokens) {
     }
     if (match(TokenType::Identifier, "LOAD")) {
         expect(TokenType::Identifier, "DATABASE");
+        if (peek().type == TokenType::Identifier) {
+            return LoadDatabase{advance().lexeme};
+        }
         return LoadDatabase{};
+    }
+    if (match(TokenType::Identifier, "BEGIN")) {
+        return BeginTransaction{};
+    }
+    if (match(TokenType::Identifier, "COMMIT")) {
+        return CommitTransaction{};
+    }
+    if (match(TokenType::Identifier, "ROLLBACK")) {
+        return RollbackTransaction{};
     }
     if (match(TokenType::Identifier, "EXIT")) {
         return Exit{};
@@ -146,6 +168,29 @@ CreateTable Parser::parseCreateTable() {
     return {table.lexeme, std::move(columns)};
 }
 
+DropTable Parser::parseDropTable() {
+    expect(TokenType::Identifier, "TABLE");
+    const auto table = advance();
+    if (table.type != TokenType::Identifier) {
+        throw std::runtime_error("expected table name");
+    }
+    return {table.lexeme};
+}
+
+RenameTable Parser::parseRenameTable() {
+    expect(TokenType::Identifier, "TABLE");
+    const auto oldName = advance();
+    if (oldName.type != TokenType::Identifier) {
+        throw std::runtime_error("expected source table name");
+    }
+    expect(TokenType::Identifier, "TO");
+    const auto newName = advance();
+    if (newName.type != TokenType::Identifier) {
+        throw std::runtime_error("expected destination table name");
+    }
+    return {oldName.lexeme, newName.lexeme};
+}
+
 CreateIndex Parser::parseCreateIndex() {
     const auto index = advance();
     if (index.type != TokenType::Identifier) {
@@ -202,9 +247,24 @@ Select Parser::parseSelect() {
     }
 
     std::optional<Predicate> where;
+    std::optional<OrderBy> orderBy;
     std::optional<std::size_t> limit;
     if (match(TokenType::Identifier, "WHERE")) {
         where = parsePredicate();
+    }
+    if (match(TokenType::Identifier, "ORDER")) {
+        expect(TokenType::Identifier, "BY");
+        const auto column = advance();
+        if (column.type != TokenType::Identifier) {
+            throw std::runtime_error("expected ORDER BY column");
+        }
+        bool ascending = true;
+        if (match(TokenType::Identifier, "DESC")) {
+            ascending = false;
+        } else {
+            (void)match(TokenType::Identifier, "ASC");
+        }
+        orderBy = OrderBy{column.lexeme, ascending};
     }
     if (match(TokenType::Identifier, "LIMIT")) {
         const auto count = advance();
@@ -213,7 +273,7 @@ Select Parser::parseSelect() {
         }
         limit = static_cast<std::size_t>(parseInt(count.lexeme));
     }
-    return {table.lexeme, std::move(columns), std::move(where), limit};
+    return {table.lexeme, std::move(columns), std::move(where), std::move(orderBy), limit};
 }
 
 Update Parser::parseUpdate() {

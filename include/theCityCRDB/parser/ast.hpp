@@ -30,15 +30,32 @@ struct CreateTable {
     std::vector<Column> columns;
 };
 
+struct DropTable {
+    std::string name;
+};
+
+struct RenameTable {
+    std::string oldName;
+    std::string newName;
+};
+
+struct ListTables {};
+
 struct Insert {
     std::string table;
     std::vector<Value> values;
+};
+
+struct OrderBy {
+    std::string column;
+    bool ascending{true};
 };
 
 struct Select {
     std::string table;
     std::vector<std::string> columns;
     std::optional<Predicate> where;
+    std::optional<OrderBy> orderBy;
     std::optional<std::size_t> limit;
 };
 
@@ -61,10 +78,16 @@ struct CreateIndex {
 };
 
 struct SaveDatabase {};
-struct LoadDatabase {};
+struct LoadDatabase {
+    std::optional<std::string> name;
+};
+struct BeginTransaction {};
+struct CommitTransaction {};
+struct RollbackTransaction {};
 struct Exit {};
 
-using Query = std::variant<CreateDatabase, CreateTable, Insert, Select, Update, Delete, CreateIndex,
-                           SaveDatabase, LoadDatabase, Exit>;
+using Query = std::variant<CreateDatabase, CreateTable, DropTable, RenameTable, ListTables, Insert, Select,
+                           Update, Delete, CreateIndex, SaveDatabase, LoadDatabase, BeginTransaction,
+                           CommitTransaction, RollbackTransaction, Exit>;
 
 }  // namespace theCityCRDB

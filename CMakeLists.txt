@@ -12,6 +12,7 @@ option(THECITYCRDB_BUILD_BENCHMARKS "Build theCityCRDB benchmarks" OFF)
 option(THECITYCRDB_ENABLE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(THECITYCRDB_ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 option(THECITYCRDB_ENABLE_CLANG_TIDY "Run clang-tidy during compilation" OFF)
+option(THECITYCRDB_ENABLE_COVERAGE "Enable compiler coverage instrumentation" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -56,8 +57,13 @@ else()
 endif()
 
 if(THECITYCRDB_ENABLE_SANITIZERS AND NOT MSVC)
-    target_compile_options(theCityCRDB PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(theCityCRDB PRIVATE -fsanitize=address,undefined)
+    target_compile_options(theCityCRDB PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(theCityCRDB PUBLIC -fsanitize=address,undefined)
+endif()
+
+if(THECITYCRDB_ENABLE_COVERAGE AND NOT MSVC)
+    target_compile_options(theCityCRDB PUBLIC --coverage -O0 -g)
+    target_link_options(theCityCRDB PUBLIC --coverage)
 endif()
 
 if(THECITYCRDB_ENABLE_CLANG_TIDY)

@@ -21,6 +21,8 @@ public:
     [[nodiscard]] bool renameTable(std::string_view oldName, std::string newName);
     [[nodiscard]] std::shared_ptr<Table> table(std::string_view name) const;
     [[nodiscard]] std::vector<std::string> listTables() const;
+    [[nodiscard]] std::vector<std::shared_ptr<Table>> tables() const;
+    [[nodiscard]] std::shared_ptr<Database> clone() const;
 
 private:
     std::string name_;

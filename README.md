@@ -9,8 +9,10 @@ This repository contains the initial engineering scaffold:
 - CMake-based library and CLI targets.
 - Typed row/table/database storage primitives.
 - SQL tokenizer, parser, and AST for the first supported SQL subset.
-- Starter execution engine for database/table creation, insert, select, update, and delete.
-- Hash-index, lock-manager, and persistence-layer extension points.
+- Execution engine for database/table creation, table listing, table rename/drop, insert, select,
+  update, delete, index creation, save/load, and snapshot transactions.
+- Maintained hash indexes with indexed equality lookup.
+- Versioned binary persistence for schemas, rows, and index definitions.
 - GoogleTest and Google Benchmark integration points.
 - CI and quality tooling configuration.
 

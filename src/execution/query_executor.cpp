@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <utility>
 
 namespace theCityCRDB {
 namespace {
@@ -27,6 +28,9 @@ QueryResult messageResult(bool success, std::string message) {
 
 }  // namespace
 
+QueryExecutor::QueryExecutor(std::filesystem::path storageRoot)
+    : storageManager_(std::move(storageRoot)) {}
+
 QueryResult QueryExecutor::execute(const Query& query) {
     return std::visit(
         [this](const auto& command) -> QueryResult {
@@ -35,6 +39,12 @@ QueryResult QueryExecutor::execute(const Query& query) {
                 return executeCreateDatabase(command);
             } else if constexpr (std::is_same_v<Command, CreateTable>) {
                 return executeCreateTable(command);
+            } else if constexpr (std::is_same_v<Command, DropTable>) {
+                return executeDropTable(command);
+            } else if constexpr (std::is_same_v<Command, RenameTable>) {
+                return executeRenameTable(command);
+            } else if constexpr (std::is_same_v<Command, ListTables>) {
+                return executeListTables();
             } else if constexpr (std::is_same_v<Command, Insert>) {
                 return executeInsert(command);
             } else if constexpr (std::is_same_v<Command, Select>) {
@@ -44,11 +54,17 @@ QueryResult QueryExecutor::execute(const Query& query) {
             } else if constexpr (std::is_same_v<Command, Delete>) {
                 return executeDelete(command);
             } else if constexpr (std::is_same_v<Command, CreateIndex>) {
-                return messageResult(true, "index creation is scaffolded for the index manager");
+                return executeCreateIndex(command);
             } else if constexpr (std::is_same_v<Command, SaveDatabase>) {
-                return messageResult(true, "save is scaffolded for the persistence layer");
+                return executeSaveDatabase();
             } else if constexpr (std::is_same_v<Command, LoadDatabase>) {
-                return messageResult(true, "load is scaffolded for the persistence layer");
+                return executeLoadDatabase(command);
+            } else if constexpr (std::is_same_v<Command, BeginTransaction>) {
+                return executeBegin();
+            } else if constexpr (std::is_same_v<Command, CommitTransaction>) {
+                return executeCommit();
+            } else if constexpr (std::is_same_v<Command, RollbackTransaction>) {
+                return executeRollback();
             } else if constexpr (std::is_same_v<Command, Exit>) {
                 return messageResult(true, "exit");
             }
@@ -73,6 +89,35 @@ QueryResult QueryExecutor::executeCreateTable(const CreateTable& command) {
     return messageResult(created, created ? "created table " + command.name : "table already exists");
 }
 
+QueryResult QueryExecutor::executeDropTable(const DropTable& command) {
+    if (!database_) {
+        return messageResult(false, "no active database");
+    }
+    const bool dropped = database_->dropTable(command.name);
+    return messageResult(dropped, dropped ? "dropped table " + command.name : "unknown table");
+}
+
+QueryResult QueryExecutor::executeRenameTable(const RenameTable& command) {
+    if (!database_) {
+        return messageResult(false, "no active database");
+    }
+    const bool renamed = database_->renameTable(command.oldName, command.newName);
+    return messageResult(renamed, renamed ? "renamed table " + command.oldName : "rename failed");
+}
+
+QueryResult QueryExecutor::executeListTables() {
+    if (!database_) {
+        return messageResult(false, "no active database");
+    }
+    QueryResult result;
+    result.message = "listed tables";
+    result.columns = {"table"};
+    for (const auto& name : database_->listTables()) {
+        result.rows.push_back({Value{name}});
+    }
+    return result;
+}
+
 QueryResult QueryExecutor::executeInsert(const Insert& command) {
     auto table = requireTable(command.table);
     table->insert(command.values);
@@ -81,7 +126,6 @@ QueryResult QueryExecutor::executeInsert(const Insert& command) {
 
 QueryResult QueryExecutor::executeSelect(const Select& command) {
     auto table = requireTable(command.table);
-    const auto snapshot = table->rowsSnapshot();
 
     std::vector<std::size_t> projection;
     std::vector<std::string> columns;
@@ -101,11 +145,40 @@ QueryResult QueryExecutor::executeSelect(const Select& command) {
         }
     }
 
-    QueryResult result{true, "selected rows", std::move(columns), {}};
-    for (const auto& row : snapshot) {
-        if (command.where && !matches(row, *table, *command.where)) {
-            continue;
+    std::vector<Row> filtered;
+    bool usedIndex = false;
+    if (command.where && command.where->op == ComparisonOperator::Equal) {
+        if (auto rowIds = table->indexedLookup(command.where->column, command.where->value)) {
+            usedIndex = true;
+            filtered = table->rowsById(*rowIds);
         }
+    }
+
+    if (!usedIndex) {
+        const auto snapshot = table->rowsSnapshot();
+        for (const auto& row : snapshot) {
+            if (command.where && !matches(row, *table, *command.where)) {
+                continue;
+            }
+            filtered.push_back(row);
+        }
+    }
+
+    if (command.orderBy) {
+        const auto orderIndex = table->columnIndex(command.orderBy->column);
+        if (!orderIndex) {
+            throw std::runtime_error("unknown ORDER BY column");
+        }
+        std::ranges::sort(filtered, [&](const Row& left, const Row& right) {
+            if (command.orderBy->ascending) {
+                return left[*orderIndex] < right[*orderIndex];
+            }
+            return right[*orderIndex] < left[*orderIndex];
+        });
+    }
+
+    QueryResult result{true, "selected rows", std::move(columns), {}};
+    for (const auto& row : filtered) {
         Row projected;
         projected.reserve(projection.size());
         for (const auto index : projection) {
@@ -153,6 +226,60 @@ QueryResult QueryExecutor::executeDelete(const Delete& command) {
         }
     }
     return messageResult(true, "deleted " + std::to_string(count) + " row(s)");
+}
+
+QueryResult QueryExecutor::executeCreateIndex(const CreateIndex& command) {
+    auto table = requireTable(command.table);
+    const bool created = table->createIndex(command.name, command.column);
+    return messageResult(created, created ? "created index " + command.name : "index creation failed");
+}
+
+QueryResult QueryExecutor::executeSaveDatabase() {
+    if (!database_) {
+        return messageResult(false, "no active database");
+    }
+    storageManager_.saveDatabase(*database_);
+    return messageResult(true, "saved database " + database_->name());
+}
+
+QueryResult QueryExecutor::executeLoadDatabase(const LoadDatabase& command) {
+    if (command.name) {
+        database_ = storageManager_.loadDatabase(*command.name);
+    } else if (database_) {
+        database_ = storageManager_.loadDatabase(database_->name());
+    } else {
+        database_ = storageManager_.loadFirstDatabase();
+    }
+    transactionSnapshot_.reset();
+    return messageResult(true, "loaded database " + database_->name());
+}
+
+QueryResult QueryExecutor::executeBegin() {
+    if (!database_) {
+        return messageResult(false, "no active database");
+    }
+    if (transactionSnapshot_) {
+        return messageResult(false, "transaction already active");
+    }
+    transactionSnapshot_ = database_->clone();
+    return messageResult(true, "began transaction");
+}
+
+QueryResult QueryExecutor::executeCommit() {
+    if (!transactionSnapshot_) {
+        return messageResult(false, "no active transaction");
+    }
+    transactionSnapshot_.reset();
+    return messageResult(true, "committed transaction");
+}
+
+QueryResult QueryExecutor::executeRollback() {
+    if (!transactionSnapshot_) {
+        return messageResult(false, "no active transaction");
+    }
+    database_ = transactionSnapshot_;
+    transactionSnapshot_.reset();
+    return messageResult(true, "rolled back transaction");
 }
 
 bool QueryExecutor::matches(const Row& row, const Table& table, const Predicate& predicate) const {

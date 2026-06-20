@@ -5,6 +5,18 @@
 
 namespace theCityCRDB {
 
+std::size_t HashIndex::ValueHash::operator()(const Value& value) const {
+    switch (value.type()) {
+        case ColumnType::Int:
+            return std::hash<std::int64_t>{}(std::get<std::int64_t>(value.data()));
+        case ColumnType::Double:
+            return std::hash<double>{}(std::get<double>(value.data()));
+        case ColumnType::String:
+            return std::hash<std::string>{}(std::get<std::string>(value.data()));
+    }
+    return 0;
+}
+
 void HashIndex::insert(const Value& key, RowId rowId) {
     std::unique_lock lock{mutex_};
     entries_[key].push_back(rowId);
@@ -21,6 +33,11 @@ void HashIndex::remove(const Value& key, RowId rowId) {
     if (rowIds.empty()) {
         entries_.erase(it);
     }
+}
+
+void HashIndex::clear() {
+    std::unique_lock lock{mutex_};
+    entries_.clear();
 }
 
 std::vector<RowId> HashIndex::find(const Value& key) const {

@@ -21,6 +21,8 @@ private:
 
     [[nodiscard]] CreateDatabase parseCreateDatabase();
     [[nodiscard]] CreateTable parseCreateTable();
+    [[nodiscard]] DropTable parseDropTable();
+    [[nodiscard]] RenameTable parseRenameTable();
     [[nodiscard]] CreateIndex parseCreateIndex();
     [[nodiscard]] Insert parseInsert();
     [[nodiscard]] Select parseSelect();
