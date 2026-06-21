@@ -7,12 +7,15 @@ theCityCRDB intentionally supports a small SQL subset first.
 ```sql
 CREATE DATABASE company;
 CREATE TABLE Employees (id INT, name STRING, salary DOUBLE);
+CREATE TABLE People (id INT, nickname STRING NULL);
 DROP TABLE Employees;
 RENAME TABLE Employees TO Staff;
 LIST TABLES;
 INSERT INTO Employees VALUES (1, "Alice", 120000.0);
+INSERT INTO People VALUES (1, "Al"), (2, NULL);
 SELECT * FROM Employees;
 SELECT name FROM Employees WHERE salary > 100000.0 LIMIT 10;
+SELECT name FROM Employees WHERE salary > 100000.0 OR name = "Alice";
 SELECT name FROM Employees WHERE salary > 100000.0 ORDER BY salary DESC LIMIT 10;
 SELECT * FROM Employees JOIN Departments ON dept_id = id LIMIT 10;
 SELECT Employees.name, Departments.dept
@@ -48,7 +51,8 @@ binds values positionally, reparses the bound statement, and executes it through
 root. `LOAD DATABASE` without a name reloads the active database when one exists, otherwise it
 loads the first saved database file. Query executors also recover automatically on startup by
 loading the latest saved snapshot and replaying WAL records after that checkpoint. If no snapshot
-exists, startup recovery replays the WAL from the beginning.
+exists, startup recovery replays the WAL from the beginning. Successful saves checkpoint the WAL so
+future recovery only replays post-save changes.
 
 Transactions use snapshot rollback semantics. `BEGIN` captures the active database state,
 `COMMIT` releases the snapshot, and `ROLLBACK` restores it.
@@ -58,10 +62,9 @@ Transactions use snapshot rollback semantics. `BEGIN` captures the active databa
 - `INT`: stored as signed 64-bit integer.
 - `DOUBLE`: stored as C++ `double`.
 - `STRING`: stored as `std::string`.
+- `NULL`: allowed only for columns declared nullable with `NULL`.
 
 ## Near-Term Grammar Work
 
 - Optional semicolon enforcement.
 - Better diagnostics with source positions.
-- Multiple-row `INSERT`.
-- `AND`/`OR` predicates.

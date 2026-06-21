@@ -178,7 +178,13 @@ CreateTable Parser::parseCreateTable() {
         if (!type) {
             throw std::runtime_error("unsupported column type");
         }
-        columns.push_back({columnName.lexeme, *type});
+        bool nullable = false;
+        if (match(TokenType::Identifier, "NOT")) {
+            expect(TokenType::Identifier, "NULL");
+        } else if (match(TokenType::Identifier, "NULL")) {
+            nullable = true;
+        }
+        columns.push_back({columnName.lexeme, *type, nullable});
     } while (match(TokenType::Comma));
 
     expect(TokenType::RightParen);
@@ -234,13 +240,17 @@ Insert Parser::parseInsert() {
         throw std::runtime_error("expected table name");
     }
     expect(TokenType::Identifier, "VALUES");
-    expect(TokenType::LeftParen);
-    std::vector<Value> values;
+    std::vector<std::vector<Value>> rows;
     do {
-        values.push_back(parseValue());
+        expect(TokenType::LeftParen);
+        std::vector<Value> values;
+        do {
+            values.push_back(parseValue());
+        } while (match(TokenType::Comma));
+        expect(TokenType::RightParen);
+        rows.push_back(std::move(values));
     } while (match(TokenType::Comma));
-    expect(TokenType::RightParen);
-    return {table.lexeme, std::move(values)};
+    return {table.lexeme, std::move(rows)};
 }
 
 Select Parser::parseSelect() {
@@ -375,7 +385,38 @@ ExecutePrepared Parser::parseExecutePrepared() {
     return {name.lexeme, std::move(parameters)};
 }
 
-Predicate Parser::parsePredicate() {
+Predicate Parser::parsePredicate() { return parseOrPredicate(); }
+
+Predicate Parser::parseOrPredicate() {
+    auto predicate = parseAndPredicate();
+    while (match(TokenType::Identifier, "OR")) {
+        auto left = std::make_shared<Predicate>(std::move(predicate));
+        auto right = std::make_shared<Predicate>(parseAndPredicate());
+        predicate = Predicate{Predicate::Kind::Or, std::move(left), std::move(right)};
+    }
+    return predicate;
+}
+
+Predicate Parser::parseAndPredicate() {
+    auto predicate = parsePrimaryPredicate();
+    while (match(TokenType::Identifier, "AND")) {
+        auto left = std::make_shared<Predicate>(std::move(predicate));
+        auto right = std::make_shared<Predicate>(parsePrimaryPredicate());
+        predicate = Predicate{Predicate::Kind::And, std::move(left), std::move(right)};
+    }
+    return predicate;
+}
+
+Predicate Parser::parsePrimaryPredicate() {
+    if (match(TokenType::LeftParen)) {
+        auto predicate = parsePredicate();
+        expect(TokenType::RightParen);
+        return predicate;
+    }
+    return parseComparisonPredicate();
+}
+
+Predicate Parser::parseComparisonPredicate() {
     const auto column = advance();
     if (column.type != TokenType::Identifier) {
         throw std::runtime_error("expected predicate column");
@@ -395,6 +436,9 @@ Predicate Parser::parsePredicate() {
 
 Value Parser::parseValue() {
     const auto token = advance();
+    if (token.type == TokenType::Identifier && equalsIgnoreCase(token.lexeme, "NULL")) {
+        return Value{};
+    }
     if (token.type == TokenType::String) {
         return Value{token.lexeme};
     }

@@ -3,17 +3,35 @@
 #include "theCityCRDB/common/comparison_operator.hpp"
 #include "theCityCRDB/common/value.hpp"
 
+#include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
 namespace theCityCRDB {
 
 struct Predicate {
+    enum class Kind {
+        Comparison,
+        And,
+        Or,
+    };
+
+    Predicate() = default;
+    Predicate(std::string columnName, ComparisonOperator comparison, Value comparisonValue)
+        : column(std::move(columnName)), op(comparison), value(std::move(comparisonValue)) {}
+    Predicate(Kind predicateKind, std::shared_ptr<Predicate> leftPredicate,
+              std::shared_ptr<Predicate> rightPredicate)
+        : kind(predicateKind), left(std::move(leftPredicate)), right(std::move(rightPredicate)) {}
+
+    Kind kind{Kind::Comparison};
     std::string column;
     ComparisonOperator op;
     Value value;
+    std::shared_ptr<Predicate> left;
+    std::shared_ptr<Predicate> right;
 };
 
 struct CreateDatabase {
@@ -38,7 +56,7 @@ struct ListTables {};
 
 struct Insert {
     std::string table;
-    std::vector<Value> values;
+    std::vector<std::vector<Value>> rows;
 };
 
 struct OrderBy {

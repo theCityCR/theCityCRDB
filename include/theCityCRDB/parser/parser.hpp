@@ -32,6 +32,10 @@ class Parser {
     [[nodiscard]] PrepareStatement parsePrepare();
     [[nodiscard]] ExecutePrepared parseExecutePrepared();
     [[nodiscard]] Predicate parsePredicate();
+    [[nodiscard]] Predicate parseOrPredicate();
+    [[nodiscard]] Predicate parseAndPredicate();
+    [[nodiscard]] Predicate parsePrimaryPredicate();
+    [[nodiscard]] Predicate parseComparisonPredicate();
     [[nodiscard]] Value parseValue();
 
     std::span<const Token> tokens_;

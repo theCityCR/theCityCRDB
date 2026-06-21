@@ -27,7 +27,8 @@ The WAL records logical operations before mutating in-memory state:
 The WAL persists append-only binary log records with a versioned header per record. Mutating
 executor operations write replayable payloads. Startup recovery loads the latest saved snapshot,
 then replays WAL records after the last save checkpoint. If no saved snapshot exists, recovery
-replays the WAL from the beginning.
+replays the WAL from the beginning. Successful saves are written through a temporary snapshot file
+and then checkpoint the WAL.
 
 ## Prepared Statements
 

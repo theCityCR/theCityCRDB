@@ -33,6 +33,9 @@ QueryResult messageResult(bool success, std::string message) {
 }
 
 std::string sqlLiteral(const Value &value) {
+    if (value.isNull()) {
+        return "NULL";
+    }
     switch (value.type()) {
     case ColumnType::Int:
     case ColumnType::Double:
@@ -55,6 +58,12 @@ std::string sqlLiteral(const Value &value) {
 std::string columnTypeLiteral(ColumnType type) { return toString(type); }
 
 std::string predicateLiteral(const Predicate &predicate) {
+    if (predicate.kind == Predicate::Kind::And || predicate.kind == Predicate::Kind::Or) {
+        const auto op = predicate.kind == Predicate::Kind::And ? " AND " : " OR ";
+        return "(" + predicateLiteral(*predicate.left) + op + predicateLiteral(*predicate.right) +
+               ")";
+    }
+
     std::string op;
     switch (predicate.op) {
     case ComparisonOperator::Equal:
@@ -70,6 +79,13 @@ std::string predicateLiteral(const Predicate &predicate) {
     return predicate.column + " " + op + " " + sqlLiteral(predicate.value);
 }
 
+const Predicate *simpleComparison(const std::optional<Predicate> &predicate) {
+    if (!predicate || predicate->kind != Predicate::Kind::Comparison) {
+        return nullptr;
+    }
+    return &*predicate;
+}
+
 std::string createTableSql(const CreateTable &command) {
     std::ostringstream sql;
     sql << "CREATE TABLE " << command.name << " (";
@@ -78,19 +94,22 @@ std::string createTableSql(const CreateTable &command) {
             sql << ", ";
         }
         sql << command.columns[i].name << " " << columnTypeLiteral(command.columns[i].type);
+        if (command.columns[i].nullable) {
+            sql << " NULL";
+        }
     }
     sql << ");";
     return sql.str();
 }
 
-std::string insertSql(const Insert &command) {
+std::string insertSql(std::string_view table, const Row &row) {
     std::ostringstream sql;
-    sql << "INSERT INTO " << command.table << " VALUES (";
-    for (std::size_t i = 0; i < command.values.size(); ++i) {
+    sql << "INSERT INTO " << table << " VALUES (";
+    for (std::size_t i = 0; i < row.size(); ++i) {
         if (i != 0) {
             sql << ", ";
         }
-        sql << sqlLiteral(command.values[i]);
+        sql << sqlLiteral(row[i]);
     }
     sql << ");";
     return sql.str();
@@ -280,9 +299,14 @@ QueryResult QueryExecutor::executeListTables() {
 
 QueryResult QueryExecutor::executeInsert(const Insert &command) {
     auto table = requireTable(command.table);
-    table->insert(command.values);
-    appendWal(WalOperation::Insert, insertSql(command));
-    return messageResult(true, "inserted 1 row");
+    for (const auto &row : command.rows) {
+        table->validateRow(row);
+    }
+    for (const auto &row : command.rows) {
+        appendWal(WalOperation::Insert, insertSql(command.table, row));
+        table->insert(row);
+    }
+    return messageResult(true, "inserted " + std::to_string(command.rows.size()) + " row(s)");
 }
 
 QueryResult QueryExecutor::executeSelect(const Select &command) {
@@ -382,6 +406,7 @@ QueryResult QueryExecutor::executeSaveDatabase() {
     }
     appendWal(WalOperation::SaveDatabase, database_->name());
     storageManager_.saveDatabase(*database_);
+    wal_.reset();
     return messageResult(true, "saved database " + database_->name());
 }
 
@@ -470,14 +495,14 @@ std::vector<std::size_t> QueryExecutor::resolveProjection(const Select &command,
 
 std::vector<Row> QueryExecutor::collectRows(const Select &command, const Table &table) const {
     const auto plan = planner_.planSelect(command, table);
-    if (command.where && plan.accessPath == AccessPath::HashIndexLookup) {
-        if (auto rowIds = table.indexedLookup(command.where->column, command.where->value)) {
+    const auto *predicate = simpleComparison(command.where);
+    if (predicate != nullptr && plan.accessPath == AccessPath::HashIndexLookup) {
+        if (auto rowIds = table.indexedLookup(predicate->column, predicate->value)) {
             return table.rowsById(*rowIds);
         }
     }
-    if (command.where && plan.accessPath == AccessPath::OrderedIndexRange) {
-        if (auto rowIds = table.orderedLookup(command.where->column, command.where->op,
-                                              command.where->value)) {
+    if (predicate != nullptr && plan.accessPath == AccessPath::OrderedIndexRange) {
+        if (auto rowIds = table.orderedLookup(predicate->column, predicate->op, predicate->value)) {
             return table.rowsById(*rowIds);
         }
     }
@@ -551,11 +576,21 @@ QueryResult QueryExecutor::executeJoinSelect(const Select &command) {
             joined.insert(joined.end(), leftRow.begin(), leftRow.end());
             joined.insert(joined.end(), rightRow.begin(), rightRow.end());
             if (command.where) {
-                const auto whereColumn = resolveResultColumn(joinedColumns, command.where->column);
-                if (!whereColumn) {
-                    throw std::runtime_error("unknown predicate column");
-                }
-                if (!compare(joined[*whereColumn], command.where->op, command.where->value)) {
+                auto matchesJoinedPredicate = [&](const Predicate &predicate,
+                                                  const auto &self) -> bool {
+                    if (predicate.kind == Predicate::Kind::And) {
+                        return self(*predicate.left, self) && self(*predicate.right, self);
+                    }
+                    if (predicate.kind == Predicate::Kind::Or) {
+                        return self(*predicate.left, self) || self(*predicate.right, self);
+                    }
+                    const auto whereColumn = resolveResultColumn(joinedColumns, predicate.column);
+                    if (!whereColumn) {
+                        throw std::runtime_error("unknown predicate column");
+                    }
+                    return compare(joined[*whereColumn], predicate.op, predicate.value);
+                };
+                if (!matchesJoinedPredicate(*command.where, matchesJoinedPredicate)) {
                     continue;
                 }
             }
@@ -592,6 +627,12 @@ QueryResult QueryExecutor::executeJoinSelect(const Select &command) {
 }
 
 bool QueryExecutor::matches(const Row &row, const Table &table, const Predicate &predicate) const {
+    if (predicate.kind == Predicate::Kind::And) {
+        return matches(row, table, *predicate.left) && matches(row, table, *predicate.right);
+    }
+    if (predicate.kind == Predicate::Kind::Or) {
+        return matches(row, table, *predicate.left) || matches(row, table, *predicate.right);
+    }
     const auto index = table.columnIndex(predicate.column);
     if (!index) {
         throw std::runtime_error("unknown predicate column");

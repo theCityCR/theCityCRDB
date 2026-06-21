@@ -32,6 +32,28 @@ TEST(ParserTests, ParsesSelectWithPredicateAndLimit) {
     EXPECT_EQ(*command.limit, 5U);
 }
 
+TEST(ParserTests, ParsesMultiRowInsertNullableColumnsAndCompoundPredicates) {
+    Parser parser;
+
+    auto create = parser.parse("CREATE TABLE People (id INT, nickname STRING NULL);");
+    ASSERT_TRUE(std::holds_alternative<CreateTable>(create));
+    const auto &table = std::get<CreateTable>(create);
+    ASSERT_EQ(table.columns.size(), 2U);
+    EXPECT_TRUE(table.columns[1].nullable);
+
+    auto insert = parser.parse("INSERT INTO People VALUES (1, \"Al\"), (2, NULL);");
+    ASSERT_TRUE(std::holds_alternative<Insert>(insert));
+    const auto &insertCommand = std::get<Insert>(insert);
+    ASSERT_EQ(insertCommand.rows.size(), 2U);
+    EXPECT_TRUE(insertCommand.rows[1][1].isNull());
+
+    auto select = parser.parse("SELECT * FROM People WHERE id = 1 OR (id > 2 AND id < 5);");
+    ASSERT_TRUE(std::holds_alternative<Select>(select));
+    const auto &selectCommand = std::get<Select>(select);
+    ASSERT_TRUE(selectCommand.where.has_value());
+    EXPECT_EQ(selectCommand.where->kind, Predicate::Kind::Or);
+}
+
 TEST(ParserTests, ParsesOrderByAndTransactionCommands) {
     Parser parser;
 

@@ -42,7 +42,7 @@ void BM_FilteredSelect(benchmark::State &state) {
     (void)executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING);"));
     (void)executor.execute(parser.parse("CREATE INDEX idx_id ON Employees(id);"));
     for (std::int64_t i = 0; i < state.range(0); ++i) {
-        (void)executor.execute(Insert{"Employees", {Value{i}, Value{std::string{"employee"}}}});
+        (void)executor.execute(Insert{"Employees", {{Value{i}, Value{std::string{"employee"}}}}});
     }
     const auto query = parser.parse("SELECT name FROM Employees WHERE id = 500;");
 

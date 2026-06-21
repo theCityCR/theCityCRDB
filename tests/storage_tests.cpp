@@ -23,6 +23,14 @@ TEST(StorageTests, RejectsRowsWithWrongShape) {
     EXPECT_THROW(table.insert({Value{1}, Value{2}}), std::invalid_argument);
 }
 
+TEST(StorageTests, SupportsNullableColumns) {
+    Table table{"Employees", {{"id", ColumnType::Int}, {"nickname", ColumnType::String, true}}};
+    EXPECT_NO_THROW(table.insert({Value{1}, Value{}}));
+
+    Table strict{"Employees", {{"id", ColumnType::Int}, {"nickname", ColumnType::String}}};
+    EXPECT_THROW(strict.insert({Value{1}, Value{}}), std::invalid_argument);
+}
+
 TEST(StorageTests, MaintainsIndexesAcrossInsertUpdateAndDelete) {
     Table table{"Employees", {{"id", ColumnType::Int}, {"name", ColumnType::String}}};
     ASSERT_TRUE(table.createIndex("idx_id", "id"));

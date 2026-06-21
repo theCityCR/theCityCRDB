@@ -37,6 +37,7 @@ class Table {
     [[nodiscard]] std::vector<std::string> listIndexes() const;
     [[nodiscard]] std::vector<std::pair<std::string, std::string>> indexDefinitions() const;
     [[nodiscard]] std::size_t versionCount(RowId rowId) const;
+    void validateRow(const Row &row) const;
 
     RowId insert(Row row);
     bool erase(RowId rowId);
@@ -45,7 +46,6 @@ class Table {
     void replaceRows(std::vector<Row> rows);
 
   private:
-    void validateRow(const Row &row) const;
     void addRowToIndexes(RowId rowId);
     void rebuildIndexes();
 

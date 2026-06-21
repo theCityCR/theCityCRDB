@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cctype>
 #include <sstream>
+#include <stdexcept>
+#include <type_traits>
 
 namespace theCityCRDB {
 
@@ -15,6 +17,9 @@ Value::Value(double value) : data_(value) {}
 Value::Value(std::string value) : data_(std::move(value)) {}
 
 ColumnType Value::type() const {
+    if (isNull()) {
+        throw std::runtime_error("null value has no concrete column type");
+    }
     if (std::holds_alternative<std::int64_t>(data_)) {
         return ColumnType::Int;
     }
@@ -24,19 +29,29 @@ ColumnType Value::type() const {
     return ColumnType::String;
 }
 
+bool Value::isNull() const noexcept { return std::holds_alternative<std::monostate>(data_); }
+
 const ValueData &Value::data() const noexcept { return data_; }
 
 std::string Value::toString() const {
+    if (isNull()) {
+        return "NULL";
+    }
     return std::visit(
         [](const auto &item) {
             std::ostringstream stream;
-            stream << item;
+            if constexpr (!std::is_same_v<std::decay_t<decltype(item)>, std::monostate>) {
+                stream << item;
+            }
             return stream.str();
         },
         data_);
 }
 
 bool operator<(const Value &lhs, const Value &rhs) {
+    if (lhs.isNull() || rhs.isNull()) {
+        return lhs.data_.index() < rhs.data_.index();
+    }
     if (lhs.type() != rhs.type()) {
         return static_cast<int>(lhs.type()) < static_cast<int>(rhs.type());
     }

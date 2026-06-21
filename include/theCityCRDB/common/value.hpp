@@ -15,7 +15,7 @@ enum class ColumnType : std::uint8_t {
     String,
 };
 
-using ValueData = std::variant<std::int64_t, double, std::string>;
+using ValueData = std::variant<std::monostate, std::int64_t, double, std::string>;
 
 class Value {
   public:
@@ -26,6 +26,7 @@ class Value {
     Value(std::string value);
 
     [[nodiscard]] ColumnType type() const;
+    [[nodiscard]] bool isNull() const noexcept;
     [[nodiscard]] const ValueData &data() const noexcept;
     [[nodiscard]] std::string toString() const;
 
@@ -33,7 +34,7 @@ class Value {
     friend bool operator<(const Value &lhs, const Value &rhs);
 
   private:
-    ValueData data_{std::int64_t{0}};
+    ValueData data_{std::monostate{}};
 };
 
 struct Column {

@@ -167,6 +167,42 @@ TEST(ExecutionTests, ExecutesPreparedStatementsWithParameters) {
     std::filesystem::remove_all(root);
 }
 
+TEST(ExecutionTests, ExecutesMultiRowInsertCompoundPredicatesAndNullPersistence) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_sql_surface_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+
+    {
+        QueryExecutor executor{root};
+        ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+        ASSERT_TRUE(executor
+                        .execute(parser.parse(
+                            "CREATE TABLE People (id INT, name STRING, nickname STRING NULL);"))
+                        .success);
+        ASSERT_TRUE(executor
+                        .execute(parser.parse("INSERT INTO People VALUES (1, \"Alice\", NULL), "
+                                              "(2, \"Bob\", \"Bobby\"), (3, \"Cara\", NULL);"))
+                        .success);
+
+        auto result = executor.execute(parser.parse(
+            "SELECT name FROM People WHERE id = 1 OR (id > 2 AND name = \"Cara\") ORDER BY name "
+            "ASC;"));
+        ASSERT_EQ(result.rows.size(), 2U);
+        EXPECT_EQ(result.rows[0].front(), Value{std::string{"Alice"}});
+        EXPECT_EQ(result.rows[1].front(), Value{std::string{"Cara"}});
+        ASSERT_TRUE(executor.execute(parser.parse("SAVE DATABASE;")).success);
+    }
+
+    QueryExecutor recovered{root};
+    auto nullResult =
+        recovered.execute(parser.parse("SELECT nickname FROM People WHERE name = \"Alice\";"));
+    ASSERT_EQ(nullResult.rows.size(), 1U);
+    EXPECT_TRUE(nullResult.rows.front().front().isNull());
+
+    std::filesystem::remove_all(root);
+}
+
 TEST(ExecutionTests, ExecutesHashJoin) {
     const auto root = std::filesystem::temp_directory_path() /
                       ("theCityCRDB_join_test_" +
@@ -318,7 +354,7 @@ TEST(ExecutionTests, SupportsConcurrentExecutorClients) {
         threads.emplace_back([thread, &executor] {
             for (int i = 0; i < insertsPerThread; ++i) {
                 const int id = thread * insertsPerThread + i;
-                (void)executor.execute(Insert{"Events", {Value{id}}});
+                (void)executor.execute(Insert{"Events", {{Value{id}}}});
             }
         });
     }

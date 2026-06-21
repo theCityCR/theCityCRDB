@@ -9,6 +9,7 @@ namespace {
 
 constexpr std::string_view kMagic = "TCRDB001";
 constexpr std::uint32_t kVersion = 1;
+constexpr std::uint8_t kNullValueType = 255;
 constexpr std::string_view kExtension = ".tcrdb";
 
 void writeBytes(std::ostream &out, const void *data, std::size_t size) {
@@ -49,6 +50,10 @@ std::string readString(std::istream &in) {
 }
 
 void writeValue(std::ostream &out, const Value &value) {
+    if (value.isNull()) {
+        writePod(out, kNullValueType);
+        return;
+    }
     const auto type = static_cast<std::uint8_t>(value.type());
     writePod(out, type);
     switch (value.type()) {
@@ -65,7 +70,11 @@ void writeValue(std::ostream &out, const Value &value) {
 }
 
 Value readValue(std::istream &in) {
-    const auto type = static_cast<ColumnType>(readPod<std::uint8_t>(in));
+    const auto encodedType = readPod<std::uint8_t>(in);
+    if (encodedType == kNullValueType) {
+        return Value{};
+    }
+    const auto type = static_cast<ColumnType>(encodedType);
     switch (type) {
     case ColumnType::Int:
         return Value{readPod<std::int64_t>(in)};
@@ -81,47 +90,68 @@ std::filesystem::path pathFor(const std::filesystem::path &root, std::string_vie
     return root / (std::string{databaseName} + std::string{kExtension});
 }
 
+std::filesystem::path temporaryPathFor(const std::filesystem::path &root,
+                                       std::string_view databaseName) {
+    return root / (std::string{databaseName} + std::string{kExtension} + ".tmp");
+}
+
 } // namespace
 
 StorageManager::StorageManager(std::filesystem::path root) : root_(std::move(root)) {}
 
 void StorageManager::saveDatabase(const Database &database) const {
     std::filesystem::create_directories(root_);
-    std::ofstream out{pathFor(root_, database.name()), std::ios::binary};
-    if (!out) {
-        throw std::runtime_error("failed to open database file for writing");
-    }
-
-    writeBytes(out, kMagic.data(), kMagic.size());
-    writePod(out, kVersion);
-    writeString(out, database.name());
-
-    const auto tables = database.tables();
-    writePod(out, static_cast<std::uint64_t>(tables.size()));
-    for (const auto &table : tables) {
-        writeString(out, table->name());
-
-        writePod(out, static_cast<std::uint64_t>(table->schema().size()));
-        for (const auto &column : table->schema()) {
-            writeString(out, column.name);
-            writePod(out, static_cast<std::uint8_t>(column.type));
-            writePod(out, static_cast<std::uint8_t>(column.nullable ? 1 : 0));
+    const auto targetPath = pathFor(root_, database.name());
+    const auto tempPath = temporaryPathFor(root_, database.name());
+    {
+        std::ofstream out{tempPath, std::ios::binary | std::ios::trunc};
+        if (!out) {
+            throw std::runtime_error("failed to open temporary database file for writing");
         }
 
-        const auto indexes = table->indexDefinitions();
-        writePod(out, static_cast<std::uint64_t>(indexes.size()));
-        for (const auto &[indexName, columnName] : indexes) {
-            writeString(out, indexName);
-            writeString(out, columnName);
-        }
+        writeBytes(out, kMagic.data(), kMagic.size());
+        writePod(out, kVersion);
+        writeString(out, database.name());
 
-        const auto rows = table->rowsSnapshot();
-        writePod(out, static_cast<std::uint64_t>(rows.size()));
-        for (const auto &row : rows) {
-            for (const auto &value : row) {
-                writeValue(out, value);
+        const auto tables = database.tables();
+        writePod(out, static_cast<std::uint64_t>(tables.size()));
+        for (const auto &table : tables) {
+            writeString(out, table->name());
+
+            writePod(out, static_cast<std::uint64_t>(table->schema().size()));
+            for (const auto &column : table->schema()) {
+                writeString(out, column.name);
+                writePod(out, static_cast<std::uint8_t>(column.type));
+                writePod(out, static_cast<std::uint8_t>(column.nullable ? 1 : 0));
+            }
+
+            const auto indexes = table->indexDefinitions();
+            writePod(out, static_cast<std::uint64_t>(indexes.size()));
+            for (const auto &[indexName, columnName] : indexes) {
+                writeString(out, indexName);
+                writeString(out, columnName);
+            }
+
+            const auto rows = table->rowsSnapshot();
+            writePod(out, static_cast<std::uint64_t>(rows.size()));
+            for (const auto &row : rows) {
+                for (const auto &value : row) {
+                    writeValue(out, value);
+                }
             }
         }
+    }
+
+    std::error_code error;
+    std::filesystem::rename(tempPath, targetPath, error);
+    if (error) {
+        std::filesystem::remove(targetPath, error);
+        error.clear();
+        std::filesystem::rename(tempPath, targetPath, error);
+    }
+    if (error) {
+        std::filesystem::remove(tempPath);
+        throw std::runtime_error("failed to publish database snapshot");
     }
 }
 

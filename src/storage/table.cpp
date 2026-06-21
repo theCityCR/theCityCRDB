@@ -197,6 +197,12 @@ void Table::validateRow(const Row &row) const {
         throw std::invalid_argument("row width does not match table schema");
     }
     for (std::size_t i = 0; i < row.size(); ++i) {
+        if (row[i].isNull()) {
+            if (!schema_[i].nullable) {
+                throw std::invalid_argument("null value assigned to non-nullable column");
+            }
+            continue;
+        }
         if (row[i].type() != schema_[i].type) {
             throw std::invalid_argument("row value does not match column type");
         }
