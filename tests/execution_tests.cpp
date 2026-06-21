@@ -375,7 +375,7 @@ TEST(ExecutionTests, SupportsConcurrentExecutorClients) {
 
     constexpr int threadCount = 4;
     constexpr int insertsPerThread = 100;
-    std::vector<std::jthread> threads;
+    std::vector<std::thread> threads;
     for (int thread = 0; thread < threadCount; ++thread) {
         threads.emplace_back([thread, &executor] {
             for (int i = 0; i < insertsPerThread; ++i) {
@@ -384,7 +384,9 @@ TEST(ExecutionTests, SupportsConcurrentExecutorClients) {
             }
         });
     }
-    threads.clear();
+    for (auto &thread : threads) {
+        thread.join();
+    }
 
     auto result = executor.execute(parser.parse("SELECT * FROM Events;"));
     EXPECT_EQ(result.rows.size(), static_cast<std::size_t>(threadCount * insertsPerThread));
