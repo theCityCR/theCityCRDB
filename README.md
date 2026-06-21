@@ -42,4 +42,4 @@ SELECT name FROM Employees WHERE salary > 100000.0 LIMIT 10;
 
 ## Roadmap
 
-The detailed plan is in [docs/design.md](docs/design.md), with architecture notes in [docs/architecture.md](docs/architecture.md), SQL coverage in [docs/sql.md](docs/sql.md), and benchmark planning in [docs/benchmarks.md](docs/benchmarks.md).
+The detailed plan is in [docs/design.md](docs/design.md), with architecture notes in [docs/architecture.md](docs/architecture.md), SQL coverage in [docs/sql.md](docs/sql.md), testing guidance in [docs/testing.md](docs/testing.md), and benchmark planning in [docs/benchmarks.md](docs/benchmarks.md).

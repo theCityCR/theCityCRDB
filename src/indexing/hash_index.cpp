@@ -6,6 +6,9 @@
 namespace theCityCRDB {
 
 std::size_t HashIndex::ValueHash::operator()(const Value &value) const {
+    if (value.isNull()) {
+        return 0x9e3779b97f4a7c15ULL;
+    }
     switch (value.type()) {
     case ColumnType::Int:
         return std::hash<std::int64_t>{}(std::get<std::int64_t>(value.data()));

@@ -1,0 +1,41 @@
+# Testing Strategy
+
+theCityCRDB uses three levels of automated testing:
+
+- Unit tests for parser, storage, indexes, persistence primitives, planner, and transaction helpers.
+- Execution tests for end-to-end SQL behavior through `QueryExecutor`.
+- Regression tests for previously fragile behavior that should never silently break.
+
+## Coverage Target
+
+Aim for at least 85% line coverage on the core library. For code that touches persistence,
+transactions, indexing, recovery, or concurrency, prefer branch-oriented tests over only increasing
+line coverage.
+
+## Regression Test Policy
+
+Add a regression test whenever:
+
+- a bug is fixed,
+- a feature has non-obvious failure modes,
+- persistence or WAL behavior changes,
+- invalid input must not partially mutate state,
+- concurrency or transaction behavior changes,
+- SQL grammar behavior is extended.
+
+Regression tests live in `tests/regression_tests.cpp`. Each test should name the behavior it
+protects, set up its own isolated temporary storage root when persistence is involved, and assert
+both the visible query result and any important internal invariant such as WAL record count.
+
+## Local Verification
+
+```sh
+cmake --build build
+ctest --test-dir build --output-on-failure
+scripts/run-sanitizers.sh
+scripts/run-coverage.sh
+cmake --build build-benchmark
+```
+
+Use sanitizer and coverage builds before changing shared systems such as `Table`, `QueryExecutor`,
+`StorageManager`, indexes, or transaction code.

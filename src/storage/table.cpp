@@ -149,7 +149,11 @@ bool Table::update(RowId rowId, std::size_t index, Value value) {
     if (rowId >= rows_.size() || index >= schema_.size()) {
         return false;
     }
-    if (value.type() != schema_[index].type) {
+    if (value.isNull()) {
+        if (!schema_[index].nullable) {
+            throw std::invalid_argument("null value assigned to non-nullable column");
+        }
+    } else if (value.type() != schema_[index].type) {
         throw std::invalid_argument("updated value does not match column type");
     }
     rows_[rowId][index] = std::move(value);

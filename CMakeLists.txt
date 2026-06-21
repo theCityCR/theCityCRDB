@@ -96,6 +96,7 @@ if(THECITYCRDB_BUILD_TESTS)
         tests/index_tests.cpp
         tests/execution_tests.cpp
         tests/deep_feature_tests.cpp
+        tests/regression_tests.cpp
     )
     target_link_libraries(theCityCRDB_tests PRIVATE theCityCRDB::theCityCRDB GTest::gtest_main)
     include(GoogleTest)
