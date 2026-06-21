@@ -37,8 +37,9 @@ ROLLBACK;
 EXIT;
 ```
 
-`CREATE INDEX` builds a hash index maintained by table writes. Equality predicates in `SELECT`
-use the index when the filtered column is indexed.
+`CREATE INDEX` builds maintained hash and ordered index structures for the target column. Equality
+predicates can use hash index lookup. Less-than and greater-than predicates can use ordered index
+range lookup when the filtered column is indexed.
 
 `JOIN` supports a single equi-join. Joined result columns are qualified as `LeftTable.column` and
 `RightTable.column`. Projection, `WHERE`, `ORDER BY`, and `LIMIT` can reference qualified columns;
@@ -54,8 +55,9 @@ loading the latest saved snapshot and replaying WAL records after that checkpoin
 exists, startup recovery replays the WAL from the beginning. Successful saves checkpoint the WAL so
 future recovery only replays post-save changes.
 
-Transactions use snapshot rollback semantics. `BEGIN` captures the active database state,
-`COMMIT` releases the snapshot, and `ROLLBACK` restores it.
+Transactions use transaction state tracking, MVCC-aware reads, and snapshot rollback semantics.
+`BEGIN` captures the active database state, active-transaction reads route through the table MVCC
+read APIs, `COMMIT` releases the snapshot, and `ROLLBACK` restores it.
 
 ## Types
 
@@ -66,5 +68,7 @@ Transactions use snapshot rollback semantics. `BEGIN` captures the active databa
 
 ## Near-Term Grammar Work
 
-- Optional semicolon enforcement.
 - Better diagnostics with source positions.
+- Aggregates such as `COUNT`.
+- `GROUP BY`.
+- Broader join syntax and multiple joins.

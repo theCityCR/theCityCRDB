@@ -6,11 +6,14 @@ theCityCRDB uses three levels of automated testing:
 - Execution tests for end-to-end SQL behavior through `QueryExecutor`.
 - Regression tests for previously fragile behavior that should never silently break.
 
-## Coverage Target
+## Current Coverage
 
 Aim for at least 85% line coverage on the core library. For code that touches persistence,
 transactions, indexing, recovery, or concurrency, prefer branch-oriented tests over only increasing
 line coverage.
+
+The current suite contains 50 discovered GoogleTest cases across parser, storage, index, execution,
+deep feature, and regression tests. The latest local coverage run reported 85.77% line coverage.
 
 `scripts/run-coverage.sh` enforces the 85% default threshold after running the coverage-instrumented
 test binary. Override it for local experiments with:
@@ -41,6 +44,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 scripts/run-sanitizers.sh
 scripts/run-coverage.sh
+cmake -S . -B build-benchmark -DTHECITYCRDB_BUILD_BENCHMARKS=ON
 cmake --build build-benchmark
 ```
 

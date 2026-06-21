@@ -1,19 +1,31 @@
-# Benchmark Plan
+# Benchmarks
 
-Benchmarks should be added alongside the features they measure.
+Benchmarks are implemented with Google Benchmark in `benchmarks/storage_benchmarks.cpp`. They are
+intended to catch broad performance regressions and provide interview-ready comparisons between
+storage and access paths.
 
-## Initial Metrics
+## Current Metrics
 
-- Insert throughput for 1,000, 100,000, and 1,000,000 rows.
-- Full table scan latency.
-- Predicate-filtered query latency.
-- Indexed point lookup latency.
-- Update and delete throughput.
-- Concurrent read scaling.
+- Insert throughput for 1,000 and 100,000 rows.
+- Indexed point lookup over 1,000 and 100,000 rows.
+- Indexed filtered `SELECT`.
+- Non-indexed filtered `SELECT`.
+- Update throughput.
+- Delete throughput.
+- Concurrent indexed point lookup scaling.
 
-The current benchmark target includes insert throughput, indexed point lookup, indexed and
-non-indexed filtered selects, update throughput, delete throughput, and concurrent indexed point
-lookup scaling.
+Build the benchmark target with:
+
+```sh
+cmake -S . -B build-benchmark -DTHECITYCRDB_BUILD_BENCHMARKS=ON
+cmake --build build-benchmark
+```
+
+Run it with:
+
+```sh
+./build-benchmark/theCityCRDB_benchmarks
+```
 
 ## Reporting
 
@@ -25,3 +37,10 @@ Suggested comparisons:
 - Single-thread read vs. multi-thread read.
 - Debug vs. release builds.
 - Sanitized vs. unsanitized builds.
+
+## Planned Benchmark Work
+
+- Add row-store comparisons between page-backed and vector-backed storage.
+- Add B+ tree range-query benchmarks.
+- Add transaction read and rollback benchmarks.
+- Save periodic benchmark summaries in this document.

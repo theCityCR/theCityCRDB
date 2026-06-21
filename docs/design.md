@@ -1,36 +1,80 @@
-# Build Plan
+# Design Status
 
-## Engineering Approach
+theCityCRDB is implemented as small, testable systems slices. The current codebase has moved past
+the initial scaffold and now includes working storage, parsing, execution, indexing, persistence,
+WAL recovery, transactions, tests, benchmarks, and CI.
 
-theCityCRDB should be developed as a sequence of small, testable slices. Each phase should leave the project compiling, with focused tests and a short design note explaining tradeoffs.
+## Implemented Milestones
 
-## Milestones
+1. Repository foundation: CMake targets, CLI, library target, GitHub Actions CI, formatting-ready
+   source layout, and project documentation.
+2. Storage engine: typed columns, nullable values, schema validation, table/database ownership,
+   page-backed `RowStore`, `VectorRowStore`, `BufferPool`, index maintenance, and MVCC version
+   recording.
+3. Parser: tokenizer, AST, grammar tests, table-management commands, predicates, ordering, limits,
+   joins, transactions, prepared statements, save/load, and exit.
+4. Query execution: projection, filtering, ordering, limit, insert, update, delete, table
+   management, joins, prepared execution, save/load, recovery, and transactional read routing.
+5. Indexes: maintained hash indexes for equality lookup and ordered B+ tree index APIs for point
+   and range lookup.
+6. Persistence: versioned binary snapshots for database schemas, rows, and index definitions.
+7. WAL and recovery: append-only logical WAL, startup replay, save checkpoints, and recovery tests.
+8. Concurrency: executor-level reader/writer synchronization and concurrent client tests.
+9. Transactions: transaction manager, transaction states, snapshot rollback, MVCC row-version store,
+   and active-transaction reads routed through MVCC table APIs.
+10. Quality: GoogleTest coverage, regression tests, sanitizer script, coverage script, benchmark
+    target, and multi-platform CI.
 
-1. Repository foundation: CMake, CI, formatting, static analysis, module boundaries, and starter docs.
-2. Storage engine: typed columns, row validation, table metadata, row identifiers, deletion strategy, and memory-layout measurements.
-3. Parser: tokenizer, AST, grammar tests, error reporting, and SQL compatibility notes.
-4. Query execution: projection, filtering, update, delete, ordering, limit, and result formatting.
-5. Hash indexes: index metadata, maintenance on insert/update/delete, and indexed point lookup planning. Initial hash indexes are implemented.
-6. Persistence: binary format, version header, table schemas, row pages, round-trip tests, and corruption handling. Initial binary save/load is implemented.
-7. B+ tree indexes: page-oriented node layout, range queries, split/merge logic, and invariants tests.
-8. Concurrency: reader/writer locking, lock ordering, concurrent query tests, and contention benchmarks.
-9. Transactions: transaction state, rollback log, commit protocol, and isolation guarantees.
-10. Optimization and reporting: benchmarks, profiling notes, graphs, and README interview narrative.
+## Current Architecture Choices
+
+- `Table` owns schema validation and index maintenance, while row storage is delegated to the
+  `RowStore` interface.
+- `PageRowStore` is the default row store. It groups rows into logical pages and mirrors serialized
+  page bytes through the LRU `BufferPool`.
+- `VectorRowStore` remains available as a simple in-memory implementation for focused tests and
+  comparisons.
+- Hash indexes provide fast equality lookup. `BTreeIndex` provides ordered lookup APIs and keeps
+  explicit node/page metadata, but still rebuilds its shallow layout from ordered entries on write.
+- The executor uses a rule-based planner that selects a full scan, hash index equality lookup, or
+  ordered index range lookup.
+- Persistence uses versioned binary snapshots. WAL recovery replays logical SQL payloads after the
+  latest save checkpoint.
+- Transactions currently combine transaction state tracking, MVCC read APIs, and snapshot-copy
+  rollback. This keeps behavior explainable while leaving room for real undo/redo and commit
+  visibility.
+
+## Known Limitations
+
+- Row IDs are positional. Deletes compact storage, which can shift later row IDs.
+- Page payloads are serialized into the buffer pool, but typed rows remain the operational source
+  of truth inside `PageRowStore`.
+- B+ tree insert/delete operations rebuild node layout rather than incrementally splitting and
+  merging pages.
+- Transaction rollback restores a cloned database snapshot rather than applying undo records.
+- MVCC does not yet enforce full isolation levels or conflict detection.
+- WAL records are logical and replay SQL operations; there is no physical redo log yet.
+- The planner does not collect statistics or perform cost-based optimization.
+- SQL support is intentionally limited and does not include aggregation, grouping, subqueries, or
+  general DDL.
+
+## Next Engineering Plan
+
+1. Introduce stable row IDs with tombstones and free-list reuse.
+2. Make `PageRowStore` load rows from page bytes so page storage becomes the source of truth.
+3. Replace snapshot rollback with undo records or MVCC commit visibility.
+4. Implement incremental B+ tree page split/merge logic with invariants tests.
+5. Harden recovery with physical redo records and crash-simulation regression tests.
+6. Add statistics to tables and indexes, then evolve the planner toward a cost model.
+7. Expand SQL support with aggregates, `GROUP BY`, and more join strategies.
+8. Turn benchmark output into documented reports and trend comparisons.
 
 ## Definition of Done
 
 Each feature should include:
 
 - Public interface and implementation.
-- Unit tests covering expected behavior and edge cases.
-- Error-handling behavior documented in `docs/sql.md` or module docs.
-- Benchmark update when the feature affects performance-sensitive paths.
-- Sanitizer-clean test run before merging.
-
-## Key Tradeoffs
-
-- Start with row-oriented storage because it is simpler to validate and easier to explain. Revisit columnar or page-based row storage after query execution stabilizes.
-- Use table-level `std::shared_mutex` first. Fine-grained row/page locks should wait until concurrency tests show the bottleneck.
-- Use snapshot rollback for the first transaction milestone. WAL/MVCC remain stretch goals because they require larger storage-engine changes.
-- Use a simple AST and direct executor before adding a cost-based planner. That keeps correctness testable before optimization work begins.
-- Persist a versioned binary format from the beginning, even if the first format only stores metadata, so compatibility thinking is not bolted on later.
+- Unit or execution tests for expected behavior and edge cases.
+- Regression tests for bugs and non-obvious failure modes.
+- SQL documentation updates when syntax or behavior changes.
+- Benchmark updates when performance-sensitive paths change.
+- Clean `ctest`, sanitizer, and coverage runs before merging.

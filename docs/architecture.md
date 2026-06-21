@@ -45,8 +45,10 @@ CLI
 
 `Table` owns schema validation and index maintenance, but delegates physical row storage to the
 `RowStore` interface. `PageRowStore` is the default implementation and stores rows in compact
-buffer-pool-backed pages. `VectorRowStore` remains available as a simple in-memory implementation
-for focused tests or future comparisons.
+buffer-pool-backed pages. Typed rows are still retained as the operational source of truth inside
+the row store; a planned storage milestone is to deserialize rows directly from page payloads.
+`VectorRowStore` remains available as a simple in-memory implementation for focused tests or future
+comparisons.
 
 `BTreeIndex` keeps the existing ordered lookup API while maintaining `BTreeNode` layout metadata
 with page ids, leaf links, root children, separator keys, and row-id payloads in leaves. Lookup and
@@ -56,6 +58,16 @@ keeps node rebuilds deterministic.
 `Table` exposes transaction-aware snapshots through `rowsSnapshot(TransactionId)` and
 `rowsById(..., TransactionId)`. The executor routes active-transaction reads through those MVCC
 APIs while retaining snapshot-copy rollback semantics for transaction undo.
+
+## Current Limitations
+
+- Row IDs are positional and can shift after delete compaction.
+- `PageRowStore` mirrors page bytes through `BufferPool`, but page bytes are not yet the only row
+  source of truth.
+- `BTreeIndex` uses leaf payloads for reads but rebuilds layout on write rather than splitting and
+  merging nodes incrementally.
+- WAL recovery is logical SQL replay, not physical page redo.
+- Transactions have MVCC read routing but still use snapshot-copy rollback.
 
 ## Current Data Flow
 
