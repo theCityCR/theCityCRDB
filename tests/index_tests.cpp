@@ -15,4 +15,4 @@ TEST(IndexTests, FindsInsertedRowIds) {
     EXPECT_EQ(rowIds[1], 8U);
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

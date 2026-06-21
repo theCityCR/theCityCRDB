@@ -24,13 +24,11 @@ ColumnType Value::type() const {
     return ColumnType::String;
 }
 
-const ValueData& Value::data() const noexcept {
-    return data_;
-}
+const ValueData &Value::data() const noexcept { return data_; }
 
 std::string Value::toString() const {
     return std::visit(
-        [](const auto& item) {
+        [](const auto &item) {
             std::ostringstream stream;
             stream << item;
             return stream.str();
@@ -38,35 +36,34 @@ std::string Value::toString() const {
         data_);
 }
 
-bool operator<(const Value& lhs, const Value& rhs) {
+bool operator<(const Value &lhs, const Value &rhs) {
     if (lhs.type() != rhs.type()) {
         return static_cast<int>(lhs.type()) < static_cast<int>(rhs.type());
     }
     return lhs.data_ < rhs.data_;
 }
 
-std::ostream& operator<<(std::ostream& os, const Value& value) {
+std::ostream &operator<<(std::ostream &os, const Value &value) {
     os << value.toString();
     return os;
 }
 
 std::string toString(ColumnType type) {
     switch (type) {
-        case ColumnType::Int:
-            return "INT";
-        case ColumnType::Double:
-            return "DOUBLE";
-        case ColumnType::String:
-            return "STRING";
+    case ColumnType::Int:
+        return "INT";
+    case ColumnType::Double:
+        return "DOUBLE";
+    case ColumnType::String:
+        return "STRING";
     }
     return "UNKNOWN";
 }
 
 std::optional<ColumnType> columnTypeFromString(std::string_view text) {
     std::string normalized{text};
-    std::ranges::transform(normalized, normalized.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::toupper(ch));
-    });
+    std::ranges::transform(normalized, normalized.begin(),
+                           [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); });
 
     if (normalized == "INT") {
         return ColumnType::Int;
@@ -80,4 +77,4 @@ std::optional<ColumnType> columnTypeFromString(std::string_view text) {
     return std::nullopt;
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

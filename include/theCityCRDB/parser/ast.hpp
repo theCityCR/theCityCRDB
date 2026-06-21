@@ -81,8 +81,8 @@ struct CommitTransaction {};
 struct RollbackTransaction {};
 struct Exit {};
 
-using Query = std::variant<CreateDatabase, CreateTable, DropTable, RenameTable, ListTables, Insert, Select,
-                           Update, Delete, CreateIndex, SaveDatabase, LoadDatabase, BeginTransaction,
-                           CommitTransaction, RollbackTransaction, Exit>;
+using Query = std::variant<CreateDatabase, CreateTable, DropTable, RenameTable, ListTables, Insert,
+                           Select, Update, Delete, CreateIndex, SaveDatabase, LoadDatabase,
+                           BeginTransaction, CommitTransaction, RollbackTransaction, Exit>;
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

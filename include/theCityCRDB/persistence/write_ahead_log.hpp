@@ -27,18 +27,18 @@ struct WalRecord {
 };
 
 class WriteAheadLog {
-public:
+  public:
     explicit WriteAheadLog(std::filesystem::path path);
 
     [[nodiscard]] std::uint64_t append(WalOperation operation, std::string payload);
     [[nodiscard]] std::vector<WalRecord> readAll() const;
     void reset();
 
-private:
+  private:
     [[nodiscard]] std::uint64_t nextLsn();
 
     std::filesystem::path path_;
     std::optional<std::uint64_t> nextLsn_;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

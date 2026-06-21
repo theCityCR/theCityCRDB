@@ -16,14 +16,14 @@ struct RowVersion {
 };
 
 class MVCCRowStore {
-public:
+  public:
     void write(RowId rowId, Row row, TransactionId transactionId);
     void erase(RowId rowId, TransactionId transactionId);
     [[nodiscard]] std::optional<Row> read(RowId rowId, TransactionId readerId) const;
     [[nodiscard]] std::size_t versionCount(RowId rowId) const;
 
-private:
+  private:
     std::map<RowId, std::vector<RowVersion>> versions_;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

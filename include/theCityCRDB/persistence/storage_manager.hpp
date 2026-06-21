@@ -9,16 +9,16 @@
 namespace theCityCRDB {
 
 class StorageManager {
-public:
+  public:
     explicit StorageManager(std::filesystem::path root);
 
-    void saveDatabase(const Database& database) const;
+    void saveDatabase(const Database &database) const;
     [[nodiscard]] std::shared_ptr<Database> loadDatabase(std::string_view databaseName) const;
     [[nodiscard]] std::shared_ptr<Database> loadFirstDatabase() const;
     [[nodiscard]] bool metadataExists(std::string_view databaseName) const;
 
-private:
+  private:
     std::filesystem::path root_;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

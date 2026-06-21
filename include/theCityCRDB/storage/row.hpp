@@ -9,4 +9,4 @@ namespace theCityCRDB {
 using Row = std::vector<Value>;
 using RowId = std::size_t;
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

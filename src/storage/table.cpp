@@ -16,18 +16,13 @@ Table::Table(std::string name, std::vector<Column> schema)
     }
 }
 
-const std::string& Table::name() const noexcept {
-    return name_;
-}
+const std::string &Table::name() const noexcept { return name_; }
 
-std::span<const Column> Table::schema() const noexcept {
-    return schema_;
-}
+std::span<const Column> Table::schema() const noexcept { return schema_; }
 
 std::optional<std::size_t> Table::columnIndex(std::string_view column) const {
-    auto it = std::ranges::find_if(schema_, [column](const Column& item) {
-        return item.name == column;
-    });
+    auto it =
+        std::ranges::find_if(schema_, [column](const Column &item) { return item.name == column; });
     if (it == schema_.end()) {
         return std::nullopt;
     }
@@ -56,7 +51,7 @@ std::size_t Table::rowCount() const {
     return rows_.size();
 }
 
-std::vector<RowId> Table::findIndexed(std::string_view column, const Value& value) const {
+std::vector<RowId> Table::findIndexed(std::string_view column, const Value &value) const {
     auto result = indexedLookup(column, value);
     if (!result) {
         return {};
@@ -64,9 +59,10 @@ std::vector<RowId> Table::findIndexed(std::string_view column, const Value& valu
     return *result;
 }
 
-std::optional<std::vector<RowId>> Table::indexedLookup(std::string_view column, const Value& value) const {
+std::optional<std::vector<RowId>> Table::indexedLookup(std::string_view column,
+                                                       const Value &value) const {
     std::shared_lock lock{mutex_};
-    for (const auto& [indexName, columnIndex] : indexColumns_) {
+    for (const auto &[indexName, columnIndex] : indexColumns_) {
         if (schema_[columnIndex].name == column) {
             return indexes_.at(indexName).find(value);
         }
@@ -74,11 +70,10 @@ std::optional<std::vector<RowId>> Table::indexedLookup(std::string_view column, 
     return std::nullopt;
 }
 
-std::optional<std::vector<RowId>> Table::orderedLookup(std::string_view column,
-                                                       ComparisonOperator op,
-                                                       const Value& value) const {
+std::optional<std::vector<RowId>>
+Table::orderedLookup(std::string_view column, ComparisonOperator op, const Value &value) const {
     std::shared_lock lock{mutex_};
-    for (const auto& [indexName, columnIndex] : indexColumns_) {
+    for (const auto &[indexName, columnIndex] : indexColumns_) {
         if (schema_[columnIndex].name != column) {
             continue;
         }
@@ -97,20 +92,17 @@ std::optional<std::vector<RowId>> Table::orderedLookup(std::string_view column,
 
 bool Table::hasIndex(std::string_view column) const {
     std::shared_lock lock{mutex_};
-    return std::ranges::any_of(indexColumns_, [&](const auto& item) {
-        return schema_[item.second].name == column;
-    });
+    return std::ranges::any_of(
+        indexColumns_, [&](const auto &item) { return schema_[item.second].name == column; });
 }
 
-bool Table::hasOrderedIndex(std::string_view column) const {
-    return hasIndex(column);
-}
+bool Table::hasOrderedIndex(std::string_view column) const { return hasIndex(column); }
 
 std::vector<std::string> Table::listIndexes() const {
     std::shared_lock lock{mutex_};
     std::vector<std::string> names;
     names.reserve(indexes_.size());
-    for (const auto& [name, _] : indexes_) {
+    for (const auto &[name, _] : indexes_) {
         names.push_back(name);
     }
     return names;
@@ -120,7 +112,7 @@ std::vector<std::pair<std::string, std::string>> Table::indexDefinitions() const
     std::shared_lock lock{mutex_};
     std::vector<std::pair<std::string, std::string>> definitions;
     definitions.reserve(indexColumns_.size());
-    for (const auto& [name, columnIndex] : indexColumns_) {
+    for (const auto &[name, columnIndex] : indexColumns_) {
         definitions.emplace_back(name, schema_[columnIndex].name);
     }
     return definitions;
@@ -179,7 +171,7 @@ bool Table::createIndex(std::string name, std::string column) {
 }
 
 void Table::replaceRows(std::vector<Row> rows) {
-    for (const auto& row : rows) {
+    for (const auto &row : rows) {
         validateRow(row);
     }
     std::unique_lock lock{mutex_};
@@ -187,7 +179,7 @@ void Table::replaceRows(std::vector<Row> rows) {
     rebuildIndexes();
 }
 
-void Table::validateRow(const Row& row) const {
+void Table::validateRow(const Row &row) const {
     if (row.size() != schema_.size()) {
         throw std::invalid_argument("row width does not match table schema");
     }
@@ -199,19 +191,19 @@ void Table::validateRow(const Row& row) const {
 }
 
 void Table::addRowToIndexes(RowId rowId) {
-    for (auto& [name, index] : indexes_) {
+    for (auto &[name, index] : indexes_) {
         index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
     }
-    for (auto& [name, index] : orderedIndexes_) {
+    for (auto &[name, index] : orderedIndexes_) {
         index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
     }
 }
 
 void Table::rebuildIndexes() {
-    for (auto& [_, index] : indexes_) {
+    for (auto &[_, index] : indexes_) {
         index.clear();
     }
-    for (auto& [_, index] : orderedIndexes_) {
+    for (auto &[_, index] : orderedIndexes_) {
         index.clear();
     }
     for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
@@ -219,4 +211,4 @@ void Table::rebuildIndexes() {
     }
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

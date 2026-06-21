@@ -10,13 +10,12 @@ Database::Database(std::string name) : name_(std::move(name)) {
     }
 }
 
-const std::string& Database::name() const noexcept {
-    return name_;
-}
+const std::string &Database::name() const noexcept { return name_; }
 
 bool Database::createTable(std::string name, std::vector<Column> schema) {
     std::unique_lock lock{mutex_};
-    auto [_, inserted] = tables_.try_emplace(name, std::make_shared<Table>(name, std::move(schema)));
+    auto [_, inserted] =
+        tables_.try_emplace(name, std::make_shared<Table>(name, std::move(schema)));
     return inserted;
 }
 
@@ -40,10 +39,10 @@ bool Database::renameTable(std::string_view oldName, std::string newName) {
     tables_.erase(it);
     std::vector<Column> schema{oldTable->schema().begin(), oldTable->schema().end()};
     auto replacement = std::make_shared<Table>(newName, std::move(schema));
-    for (const auto& row : oldTable->rowsSnapshot()) {
+    for (const auto &row : oldTable->rowsSnapshot()) {
         replacement->insert(row);
     }
-    for (const auto& [indexName, columnName] : oldTable->indexDefinitions()) {
+    for (const auto &[indexName, columnName] : oldTable->indexDefinitions()) {
         replacement->createIndex(indexName, columnName);
     }
     tables_.emplace(std::move(newName), std::move(replacement));
@@ -63,7 +62,7 @@ std::vector<std::string> Database::listTables() const {
     std::shared_lock lock{mutex_};
     std::vector<std::string> names;
     names.reserve(tables_.size());
-    for (const auto& [name, _] : tables_) {
+    for (const auto &[name, _] : tables_) {
         names.push_back(name);
     }
     return names;
@@ -73,7 +72,7 @@ std::vector<std::shared_ptr<Table>> Database::tables() const {
     std::shared_lock lock{mutex_};
     std::vector<std::shared_ptr<Table>> result;
     result.reserve(tables_.size());
-    for (const auto& [_, table] : tables_) {
+    for (const auto &[_, table] : tables_) {
         result.push_back(table);
     }
     return result;
@@ -81,7 +80,7 @@ std::vector<std::shared_ptr<Table>> Database::tables() const {
 
 std::shared_ptr<Database> Database::clone() const {
     auto copy = std::make_shared<Database>(name_);
-    for (const auto& sourceTable : tables()) {
+    for (const auto &sourceTable : tables()) {
         std::vector<Column> schema{sourceTable->schema().begin(), sourceTable->schema().end()};
         const bool created = copy->createTable(sourceTable->name(), std::move(schema));
         if (!created) {
@@ -89,11 +88,11 @@ std::shared_ptr<Database> Database::clone() const {
         }
         auto destinationTable = copy->table(sourceTable->name());
         destinationTable->replaceRows(sourceTable->rowsSnapshot());
-        for (const auto& [indexName, columnName] : sourceTable->indexDefinitions()) {
+        for (const auto &[indexName, columnName] : sourceTable->indexDefinitions()) {
             destinationTable->createIndex(indexName, columnName);
         }
     }
     return copy;
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

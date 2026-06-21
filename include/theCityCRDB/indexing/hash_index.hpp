@@ -9,20 +9,20 @@
 namespace theCityCRDB {
 
 class HashIndex {
-public:
-    void insert(const Value& key, RowId rowId);
-    void remove(const Value& key, RowId rowId);
+  public:
+    void insert(const Value &key, RowId rowId);
+    void remove(const Value &key, RowId rowId);
     void clear();
-    [[nodiscard]] std::vector<RowId> find(const Value& key) const;
+    [[nodiscard]] std::vector<RowId> find(const Value &key) const;
     [[nodiscard]] std::size_t size() const;
 
-private:
+  private:
     struct ValueHash {
-        [[nodiscard]] std::size_t operator()(const Value& value) const;
+        [[nodiscard]] std::size_t operator()(const Value &value) const;
     };
 
     std::unordered_map<Value, std::vector<RowId>, ValueHash> entries_;
     mutable std::shared_mutex mutex_;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

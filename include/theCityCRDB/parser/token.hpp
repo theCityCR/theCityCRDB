@@ -1,10 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 namespace theCityCRDB {
 
-enum class TokenType {
+enum class TokenType : std::uint8_t {
     Identifier,
     Number,
     String,
@@ -24,4 +25,4 @@ struct Token {
     std::string lexeme;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

@@ -18,7 +18,7 @@ struct Page {
 };
 
 class BufferPool {
-public:
+  public:
     explicit BufferPool(std::size_t capacity);
 
     void put(Page page);
@@ -27,7 +27,7 @@ public:
     [[nodiscard]] std::size_t size() const noexcept;
     [[nodiscard]] std::size_t capacity() const noexcept;
 
-private:
+  private:
     void touch(std::list<PageId>::iterator it);
     void evictIfNeeded();
 
@@ -36,4 +36,4 @@ private:
     std::unordered_map<PageId, std::pair<Page, std::list<PageId>::iterator>> pages_;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

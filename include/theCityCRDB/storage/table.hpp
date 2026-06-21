@@ -17,21 +17,20 @@
 namespace theCityCRDB {
 
 class Table {
-public:
+  public:
     Table(std::string name, std::vector<Column> schema);
 
-    [[nodiscard]] const std::string& name() const noexcept;
+    [[nodiscard]] const std::string &name() const noexcept;
     [[nodiscard]] std::span<const Column> schema() const noexcept;
     [[nodiscard]] std::optional<std::size_t> columnIndex(std::string_view column) const;
     [[nodiscard]] std::vector<Row> rowsSnapshot() const;
     [[nodiscard]] std::vector<Row> rowsById(std::span<const RowId> rowIds) const;
     [[nodiscard]] std::size_t rowCount() const;
-    [[nodiscard]] std::vector<RowId> findIndexed(std::string_view column, const Value& value) const;
+    [[nodiscard]] std::vector<RowId> findIndexed(std::string_view column, const Value &value) const;
     [[nodiscard]] std::optional<std::vector<RowId>> indexedLookup(std::string_view column,
-                                                                  const Value& value) const;
-    [[nodiscard]] std::optional<std::vector<RowId>> orderedLookup(std::string_view column,
-                                                                  ComparisonOperator op,
-                                                                  const Value& value) const;
+                                                                  const Value &value) const;
+    [[nodiscard]] std::optional<std::vector<RowId>>
+    orderedLookup(std::string_view column, ComparisonOperator op, const Value &value) const;
     [[nodiscard]] bool hasIndex(std::string_view column) const;
     [[nodiscard]] bool hasOrderedIndex(std::string_view column) const;
     [[nodiscard]] std::vector<std::string> listIndexes() const;
@@ -43,8 +42,8 @@ public:
     bool createIndex(std::string name, std::string column);
     void replaceRows(std::vector<Row> rows);
 
-private:
-    void validateRow(const Row& row) const;
+  private:
+    void validateRow(const Row &row) const;
     void addRowToIndexes(RowId rowId);
     void rebuildIndexes();
 
@@ -57,4 +56,4 @@ private:
     mutable std::shared_mutex mutex_;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

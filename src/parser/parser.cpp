@@ -3,16 +3,15 @@
 #include "theCityCRDB/parser/tokenizer.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <stdexcept>
 
 namespace theCityCRDB {
 namespace {
 
 bool equalsIgnoreCase(std::string_view lhs, std::string_view rhs) {
-    return lhs.size() == rhs.size() &&
-           std::ranges::equal(lhs, rhs, [](char left, char right) {
+    return lhs.size() == rhs.size() && std::ranges::equal(lhs, rhs, [](char left, char right) {
                return std::toupper(static_cast<unsigned char>(left)) ==
                       std::toupper(static_cast<unsigned char>(right));
            });
@@ -27,7 +26,7 @@ std::int64_t parseInt(std::string_view text) {
     return result;
 }
 
-}  // namespace
+} // namespace
 
 Query Parser::parse(std::string_view sql) {
     const auto tokens = Tokenizer{}.tokenize(sql);
@@ -104,15 +103,15 @@ Query Parser::parse(std::span<const Token> tokens) {
     throw std::runtime_error("unsupported SQL command");
 }
 
-const Token& Parser::peek() const {
+const Token &Parser::peek() const {
     if (current_ >= tokens_.size()) {
         throw std::runtime_error("parser read past end of token stream");
     }
     return tokens_[current_];
 }
 
-const Token& Parser::advance() {
-    const Token& token = peek();
+const Token &Parser::advance() {
+    const Token &token = peek();
     if (token.type != TokenType::End) {
         ++current_;
     }
@@ -120,7 +119,7 @@ const Token& Parser::advance() {
 }
 
 bool Parser::match(TokenType type, std::string_view lexeme) {
-    const Token& token = peek();
+    const Token &token = peek();
     if (token.type != type) {
         return false;
     }
@@ -352,4 +351,4 @@ Value Parser::parseValue() {
     throw std::runtime_error("expected literal value");
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

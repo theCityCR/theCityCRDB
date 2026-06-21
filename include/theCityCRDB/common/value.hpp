@@ -18,7 +18,7 @@ enum class ColumnType : std::uint8_t {
 using ValueData = std::variant<std::int64_t, double, std::string>;
 
 class Value {
-public:
+  public:
     Value() = default;
     Value(std::int64_t value);
     Value(int value);
@@ -26,13 +26,13 @@ public:
     Value(std::string value);
 
     [[nodiscard]] ColumnType type() const;
-    [[nodiscard]] const ValueData& data() const noexcept;
+    [[nodiscard]] const ValueData &data() const noexcept;
     [[nodiscard]] std::string toString() const;
 
-    friend bool operator==(const Value& lhs, const Value& rhs) = default;
-    friend bool operator<(const Value& lhs, const Value& rhs);
+    friend bool operator==(const Value &lhs, const Value &rhs) = default;
+    friend bool operator<(const Value &lhs, const Value &rhs);
 
-private:
+  private:
     ValueData data_{std::int64_t{0}};
 };
 
@@ -42,8 +42,8 @@ struct Column {
     bool nullable{false};
 };
 
-std::ostream& operator<<(std::ostream& os, const Value& value);
+std::ostream &operator<<(std::ostream &os, const Value &value);
 std::string toString(ColumnType type);
 std::optional<ColumnType> columnTypeFromString(std::string_view text);
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

@@ -7,14 +7,14 @@ namespace theCityCRDB {
 namespace {
 
 bool isIdentifierStart(char ch) {
-    return std::isalpha(static_cast<unsigned char>(ch)) || ch == '_';
+    return std::isalpha(static_cast<unsigned char>(ch)) != 0 || ch == '_';
 }
 
 bool isIdentifierPart(char ch) {
-    return std::isalnum(static_cast<unsigned char>(ch)) || ch == '_';
+    return std::isalnum(static_cast<unsigned char>(ch)) != 0 || ch == '_';
 }
 
-}  // namespace
+} // namespace
 
 std::vector<Token> Tokenizer::tokenize(std::string_view sql) const {
     std::vector<Token> tokens;
@@ -22,7 +22,7 @@ std::vector<Token> Tokenizer::tokenize(std::string_view sql) const {
 
     while (pos < sql.size()) {
         const char ch = sql[pos];
-        if (std::isspace(static_cast<unsigned char>(ch))) {
+        if (std::isspace(static_cast<unsigned char>(ch)) != 0) {
             ++pos;
             continue;
         }
@@ -36,10 +36,10 @@ std::vector<Token> Tokenizer::tokenize(std::string_view sql) const {
             continue;
         }
 
-        if (std::isdigit(static_cast<unsigned char>(ch)) || ch == '-') {
+        if (std::isdigit(static_cast<unsigned char>(ch)) != 0 || ch == '-') {
             const std::size_t start = pos++;
             while (pos < sql.size() &&
-                   (std::isdigit(static_cast<unsigned char>(sql[pos])) || sql[pos] == '.')) {
+                   (std::isdigit(static_cast<unsigned char>(sql[pos])) != 0 || sql[pos] == '.')) {
                 ++pos;
             }
             tokens.push_back({TokenType::Number, std::string{sql.substr(start, pos - start)}});
@@ -60,32 +60,32 @@ std::vector<Token> Tokenizer::tokenize(std::string_view sql) const {
         }
 
         switch (ch) {
-            case ',':
-                tokens.push_back({TokenType::Comma, ","});
-                break;
-            case ';':
-                tokens.push_back({TokenType::Semicolon, ";"});
-                break;
-            case '(':
-                tokens.push_back({TokenType::LeftParen, "("});
-                break;
-            case ')':
-                tokens.push_back({TokenType::RightParen, ")"});
-                break;
-            case '*':
-                tokens.push_back({TokenType::Star, "*"});
-                break;
-            case '=':
-                tokens.push_back({TokenType::Equal, "="});
-                break;
-            case '>':
-                tokens.push_back({TokenType::Greater, ">"});
-                break;
-            case '<':
-                tokens.push_back({TokenType::Less, "<"});
-                break;
-            default:
-                throw std::runtime_error("unexpected character in SQL input");
+        case ',':
+            tokens.push_back({TokenType::Comma, ","});
+            break;
+        case ';':
+            tokens.push_back({TokenType::Semicolon, ";"});
+            break;
+        case '(':
+            tokens.push_back({TokenType::LeftParen, "("});
+            break;
+        case ')':
+            tokens.push_back({TokenType::RightParen, ")"});
+            break;
+        case '*':
+            tokens.push_back({TokenType::Star, "*"});
+            break;
+        case '=':
+            tokens.push_back({TokenType::Equal, "="});
+            break;
+        case '>':
+            tokens.push_back({TokenType::Greater, ">"});
+            break;
+        case '<':
+            tokens.push_back({TokenType::Less, "<"});
+            break;
+        default:
+            throw std::runtime_error("unexpected character in SQL input");
         }
         ++pos;
     }
@@ -94,4 +94,4 @@ std::vector<Token> Tokenizer::tokenize(std::string_view sql) const {
     return tokens;
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

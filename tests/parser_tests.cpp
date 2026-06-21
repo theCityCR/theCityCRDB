@@ -9,7 +9,7 @@ TEST(ParserTests, ParsesCreateTable) {
     auto query = parser.parse("CREATE TABLE Employees (id INT, name STRING, salary DOUBLE);");
 
     ASSERT_TRUE(std::holds_alternative<CreateTable>(query));
-    const auto& command = std::get<CreateTable>(query);
+    const auto &command = std::get<CreateTable>(query);
     EXPECT_EQ(command.name, "Employees");
     ASSERT_EQ(command.columns.size(), 3U);
     EXPECT_EQ(command.columns[0].type, ColumnType::Int);
@@ -22,7 +22,7 @@ TEST(ParserTests, ParsesSelectWithPredicateAndLimit) {
     auto query = parser.parse("SELECT name FROM Employees WHERE salary > 100000.0 LIMIT 5;");
 
     ASSERT_TRUE(std::holds_alternative<Select>(query));
-    const auto& command = std::get<Select>(query);
+    const auto &command = std::get<Select>(query);
     EXPECT_EQ(command.table, "Employees");
     ASSERT_EQ(command.columns.size(), 1U);
     EXPECT_EQ(command.columns.front(), "name");
@@ -37,7 +37,7 @@ TEST(ParserTests, ParsesOrderByAndTransactionCommands) {
 
     auto select = parser.parse("SELECT * FROM Employees ORDER BY salary DESC LIMIT 2;");
     ASSERT_TRUE(std::holds_alternative<Select>(select));
-    const auto& command = std::get<Select>(select);
+    const auto &command = std::get<Select>(select);
     ASSERT_TRUE(command.orderBy.has_value());
     EXPECT_EQ(command.orderBy->column, "salary");
     EXPECT_FALSE(command.orderBy->ascending);
@@ -51,7 +51,8 @@ TEST(ParserTests, ParsesTableManagementCommands) {
     Parser parser;
 
     EXPECT_TRUE(std::holds_alternative<DropTable>(parser.parse("DROP TABLE Employees;")));
-    EXPECT_TRUE(std::holds_alternative<RenameTable>(parser.parse("RENAME TABLE Employees TO Staff;")));
+    EXPECT_TRUE(
+        std::holds_alternative<RenameTable>(parser.parse("RENAME TABLE Employees TO Staff;")));
     EXPECT_TRUE(std::holds_alternative<ListTables>(parser.parse("LIST TABLES;")));
 }
 
@@ -61,4 +62,4 @@ TEST(ParserTests, RejectsTrailingTokens) {
     EXPECT_THROW((void)parser.parse("SELECT * FROM Employees unexpected;"), std::runtime_error);
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

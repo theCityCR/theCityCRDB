@@ -8,8 +8,8 @@
 namespace theCityCRDB {
 
 class Tokenizer {
-public:
+  public:
     [[nodiscard]] std::vector<Token> tokenize(std::string_view sql) const;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

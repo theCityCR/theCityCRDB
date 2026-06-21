@@ -3,12 +3,13 @@
 #include "theCityCRDB/parser/ast.hpp"
 #include "theCityCRDB/storage/table.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 
 namespace theCityCRDB {
 
-enum class AccessPath {
+enum class AccessPath : std::uint8_t {
     FullScan,
     HashIndexLookup,
     OrderedIndexRange,
@@ -21,8 +22,8 @@ struct QueryPlan {
 };
 
 class QueryPlanner {
-public:
-    [[nodiscard]] QueryPlan planSelect(const Select& query, const Table& table) const;
+  public:
+    [[nodiscard]] QueryPlan planSelect(const Select &query, const Table &table) const;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

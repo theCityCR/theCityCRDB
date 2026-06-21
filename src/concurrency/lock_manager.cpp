@@ -10,4 +10,4 @@ std::unique_lock<std::shared_mutex> LockManager::acquireWrite() {
     return std::unique_lock<std::shared_mutex>{mutex_};
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

@@ -31,21 +31,13 @@ std::optional<Page> BufferPool::get(PageId pageId) {
     return it->second.first;
 }
 
-bool BufferPool::contains(PageId pageId) const {
-    return pages_.contains(pageId);
-}
+bool BufferPool::contains(PageId pageId) const { return pages_.contains(pageId); }
 
-std::size_t BufferPool::size() const noexcept {
-    return pages_.size();
-}
+std::size_t BufferPool::size() const noexcept { return pages_.size(); }
 
-std::size_t BufferPool::capacity() const noexcept {
-    return capacity_;
-}
+std::size_t BufferPool::capacity() const noexcept { return capacity_; }
 
-void BufferPool::touch(std::list<PageId>::iterator it) {
-    lru_.splice(lru_.begin(), lru_, it);
-}
+void BufferPool::touch(std::list<PageId>::iterator it) { lru_.splice(lru_.begin(), lru_, it); }
 
 void BufferPool::evictIfNeeded() {
     while (pages_.size() > capacity_) {
@@ -55,4 +47,4 @@ void BufferPool::evictIfNeeded() {
     }
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

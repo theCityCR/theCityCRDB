@@ -24,7 +24,8 @@ std::optional<Row> MVCCRowStore::read(RowId rowId, TransactionId readerId) const
         return std::nullopt;
     }
     for (auto version = it->second.rbegin(); version != it->second.rend(); ++version) {
-        if (version->createdBy <= readerId && (!version->deletedBy || *version->deletedBy > readerId)) {
+        if (version->createdBy <= readerId &&
+            (!version->deletedBy || *version->deletedBy > readerId)) {
             return version->row;
         }
     }
@@ -39,4 +40,4 @@ std::size_t MVCCRowStore::versionCount(RowId rowId) const {
     return it->second.size();
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

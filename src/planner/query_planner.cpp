@@ -2,7 +2,7 @@
 
 namespace theCityCRDB {
 
-QueryPlan QueryPlanner::planSelect(const Select& query, const Table& table) const {
+QueryPlan QueryPlanner::planSelect(const Select &query, const Table &table) const {
     QueryPlan plan;
     plan.predicate = query.where;
     if (!query.where) {
@@ -15,7 +15,8 @@ QueryPlan QueryPlanner::planSelect(const Select& query, const Table& table) cons
         return plan;
     }
 
-    if ((query.where->op == ComparisonOperator::Greater || query.where->op == ComparisonOperator::Less) &&
+    if ((query.where->op == ComparisonOperator::Greater ||
+         query.where->op == ComparisonOperator::Less) &&
         table.hasOrderedIndex(query.where->column)) {
         plan.accessPath = AccessPath::OrderedIndexRange;
         plan.explanation = "ordered index range lookup";
@@ -25,4 +26,4 @@ QueryPlan QueryPlanner::planSelect(const Select& query, const Table& table) cons
     return plan;
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

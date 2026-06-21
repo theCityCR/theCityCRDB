@@ -14,4 +14,4 @@ struct QueryResult {
     std::vector<Row> rows;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

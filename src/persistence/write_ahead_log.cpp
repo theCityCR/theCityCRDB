@@ -7,25 +7,23 @@
 namespace theCityCRDB {
 namespace {
 
-constexpr std::uint32_t kWalMagic = 0x54435741;  // TCWA
+constexpr std::uint32_t kWalMagic = 0x54435741; // TCWA
 constexpr std::uint32_t kWalVersion = 1;
 
-template <typename T>
-void writePod(std::ostream& out, const T& value) {
-    out.write(reinterpret_cast<const char*>(&value), sizeof(T));
+template <typename T> void writePod(std::ostream &out, const T &value) {
+    out.write(reinterpret_cast<const char *>(&value), sizeof(T));
 }
 
-template <typename T>
-T readPod(std::istream& in) {
+template <typename T> T readPod(std::istream &in) {
     T value{};
-    in.read(reinterpret_cast<char*>(&value), sizeof(T));
+    in.read(reinterpret_cast<char *>(&value), sizeof(T));
     if (!in) {
         throw std::runtime_error("failed to read WAL record");
     }
     return value;
 }
 
-}  // namespace
+} // namespace
 
 WriteAheadLog::WriteAheadLog(std::filesystem::path path) : path_(std::move(path)) {}
 
@@ -92,11 +90,11 @@ std::uint64_t WriteAheadLog::nextLsn() {
     }
 
     std::uint64_t next = 1;
-    for (const auto& record : readAll()) {
+    for (const auto &record : readAll()) {
         next = std::max(next, record.lsn + 1);
     }
     nextLsn_ = next + 1;
     return next;
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

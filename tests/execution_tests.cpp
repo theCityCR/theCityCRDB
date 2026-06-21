@@ -14,10 +14,16 @@ TEST(ExecutionTests, InsertsAndSelectsRows) {
     QueryExecutor executor;
 
     EXPECT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
-    EXPECT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING, salary DOUBLE);")).success);
-    EXPECT_TRUE(executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\", 120000.0);")).success);
+    EXPECT_TRUE(
+        executor
+            .execute(parser.parse("CREATE TABLE Employees (id INT, name STRING, salary DOUBLE);"))
+            .success);
+    EXPECT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\", 120000.0);"))
+            .success);
 
-    auto result = executor.execute(parser.parse("SELECT name FROM Employees WHERE salary > 100000.0 LIMIT 1;"));
+    auto result = executor.execute(
+        parser.parse("SELECT name FROM Employees WHERE salary > 100000.0 LIMIT 1;"));
     ASSERT_TRUE(result.success);
     ASSERT_EQ(result.rows.size(), 1U);
     EXPECT_EQ(result.rows.front().front(), Value{std::string{"Alice"}});
@@ -28,11 +34,19 @@ TEST(ExecutionTests, OrdersLimitsAndManagesTables) {
     QueryExecutor executor;
 
     ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
-    ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING, salary DOUBLE);")).success);
-    ASSERT_TRUE(executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\", 120000.0);")).success);
-    ASSERT_TRUE(executor.execute(parser.parse("INSERT INTO Employees VALUES (2, \"Bob\", 90000.0);")).success);
+    ASSERT_TRUE(
+        executor
+            .execute(parser.parse("CREATE TABLE Employees (id INT, name STRING, salary DOUBLE);"))
+            .success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\", 120000.0);"))
+            .success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Employees VALUES (2, \"Bob\", 90000.0);"))
+            .success);
 
-    auto ordered = executor.execute(parser.parse("SELECT name FROM Employees ORDER BY salary ASC LIMIT 1;"));
+    auto ordered =
+        executor.execute(parser.parse("SELECT name FROM Employees ORDER BY salary ASC LIMIT 1;"));
     ASSERT_EQ(ordered.rows.size(), 1U);
     EXPECT_EQ(ordered.rows.front().front(), Value{std::string{"Bob"}});
 
@@ -67,9 +81,12 @@ TEST(ExecutionTests, SavesAndLoadsDatabase) {
     {
         QueryExecutor executor{root};
         ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
-        ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING);")).success);
-        ASSERT_TRUE(executor.execute(parser.parse("CREATE INDEX idx_id ON Employees(id);")).success);
-        ASSERT_TRUE(executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\");")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING);"))
+                        .success);
+        ASSERT_TRUE(
+            executor.execute(parser.parse("CREATE INDEX idx_id ON Employees(id);")).success);
+        ASSERT_TRUE(
+            executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\");")).success);
         ASSERT_TRUE(executor.execute(parser.parse("SAVE DATABASE;")).success);
     }
 
@@ -112,8 +129,9 @@ TEST(ExecutionTests, FailedInsertDoesNotPolluteWal) {
 
     ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
     ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT);")).success);
-    EXPECT_THROW((void)executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"extra\");")),
-                 std::invalid_argument);
+    EXPECT_THROW(
+        (void)executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"extra\");")),
+        std::invalid_argument);
 
     WriteAheadLog wal{root / "theCityCRDB.wal"};
     const auto records = wal.readAll();
@@ -124,4 +142,4 @@ TEST(ExecutionTests, FailedInsertDoesNotPolluteWal) {
     std::filesystem::remove_all(root);
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

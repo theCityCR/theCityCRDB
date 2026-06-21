@@ -6,7 +6,7 @@
 
 namespace {
 
-void printResult(const theCityCRDB::QueryResult& result) {
+void printResult(const theCityCRDB::QueryResult &result) {
     if (!result.message.empty()) {
         std::cout << result.message << '\n';
     }
@@ -14,22 +14,22 @@ void printResult(const theCityCRDB::QueryResult& result) {
         return;
     }
 
-    for (const auto& column : result.columns) {
+    for (const auto &column : result.columns) {
         std::cout << column << '\t';
     }
     std::cout << '\n';
 
-    for (const auto& row : result.rows) {
-        for (const auto& value : row) {
+    for (const auto &row : result.rows) {
+        for (const auto &value : row) {
             std::cout << value << '\t';
         }
         std::cout << '\n';
     }
 }
 
-}  // namespace
+} // namespace
 
-int main() {
+int main() try {
     theCityCRDB::Parser parser;
     theCityCRDB::QueryExecutor executor;
 
@@ -45,10 +45,13 @@ int main() {
             if (result.message == "exit") {
                 break;
             }
-        } catch (const std::exception& ex) {
+        } catch (const std::exception &ex) {
             std::cerr << "error: " << ex.what() << '\n';
         }
     }
 
     return 0;
+} catch (const std::exception &ex) {
+    std::cerr << "fatal: " << ex.what() << '\n';
+    return 1;
 }

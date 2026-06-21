@@ -9,7 +9,7 @@ namespace theCityCRDB {
 
 using TransactionId = std::uint64_t;
 
-enum class TransactionState {
+enum class TransactionState : std::uint8_t {
     Active,
     Committed,
     RolledBack,
@@ -21,15 +21,15 @@ struct Transaction {
 };
 
 class TransactionManager {
-public:
+  public:
     [[nodiscard]] Transaction begin();
     void commit(TransactionId id);
     void rollback(TransactionId id);
     [[nodiscard]] std::optional<Transaction> find(TransactionId id) const;
 
-private:
+  private:
     TransactionId nextId_{1};
     std::unordered_map<TransactionId, Transaction> transactions_;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

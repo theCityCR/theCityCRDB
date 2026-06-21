@@ -9,13 +9,13 @@
 namespace theCityCRDB {
 
 class Parser {
-public:
+  public:
     [[nodiscard]] Query parse(std::string_view sql);
     [[nodiscard]] Query parse(std::span<const Token> tokens);
 
-private:
-    [[nodiscard]] const Token& peek() const;
-    [[nodiscard]] const Token& advance();
+  private:
+    [[nodiscard]] const Token &peek() const;
+    [[nodiscard]] const Token &advance();
     [[nodiscard]] bool match(TokenType type, std::string_view lexeme = {});
     void expect(TokenType type, std::string_view lexeme = {});
     void expectStatementEnd();
@@ -36,4 +36,4 @@ private:
     std::size_t current_{0};
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

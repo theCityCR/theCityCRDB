@@ -4,7 +4,10 @@ Checks: >
   cppcoreguidelines-*,
   modernize-*,
   performance-*,
-  readability-*
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*'
 FormatStyle: file

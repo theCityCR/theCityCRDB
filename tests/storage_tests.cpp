@@ -7,7 +7,8 @@ namespace theCityCRDB {
 
 TEST(StorageTests, CreatesTableAndInsertsTypedRows) {
     Database database{"company"};
-    ASSERT_TRUE(database.createTable("Employees", {{"id", ColumnType::Int}, {"name", ColumnType::String}}));
+    ASSERT_TRUE(
+        database.createTable("Employees", {{"id", ColumnType::Int}, {"name", ColumnType::String}}));
 
     auto table = database.table("Employees");
     ASSERT_NE(table, nullptr);
@@ -56,4 +57,4 @@ TEST(StorageTests, SupportsConcurrentInserts) {
     EXPECT_EQ(table.rowCount(), static_cast<std::size_t>(threadCount * insertsPerThread));
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

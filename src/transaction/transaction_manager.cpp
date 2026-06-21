@@ -34,4 +34,4 @@ std::optional<Transaction> TransactionManager::find(TransactionId id) const {
     return it->second;
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

@@ -5,12 +5,12 @@
 namespace theCityCRDB {
 
 class LockManager {
-public:
+  public:
     [[nodiscard]] std::shared_lock<std::shared_mutex> acquireRead();
     [[nodiscard]] std::unique_lock<std::shared_mutex> acquireWrite();
 
-private:
+  private:
     std::shared_mutex mutex_;
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

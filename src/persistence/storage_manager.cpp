@@ -11,83 +11,81 @@ constexpr std::string_view kMagic = "TCRDB001";
 constexpr std::uint32_t kVersion = 1;
 constexpr std::string_view kExtension = ".tcrdb";
 
-void writeBytes(std::ostream& out, const void* data, std::size_t size) {
-    out.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
+void writeBytes(std::ostream &out, const void *data, std::size_t size) {
+    out.write(static_cast<const char *>(data), static_cast<std::streamsize>(size));
     if (!out) {
         throw std::runtime_error("failed to write database file");
     }
 }
 
-void readBytes(std::istream& in, void* data, std::size_t size) {
-    in.read(static_cast<char*>(data), static_cast<std::streamsize>(size));
+void readBytes(std::istream &in, void *data, std::size_t size) {
+    in.read(static_cast<char *>(data), static_cast<std::streamsize>(size));
     if (!in) {
         throw std::runtime_error("failed to read database file");
     }
 }
 
-template <typename T>
-void writePod(std::ostream& out, const T& value) {
+template <typename T> void writePod(std::ostream &out, const T &value) {
     writeBytes(out, &value, sizeof(T));
 }
 
-template <typename T>
-T readPod(std::istream& in) {
+template <typename T> T readPod(std::istream &in) {
     T value{};
     readBytes(in, &value, sizeof(T));
     return value;
 }
 
-void writeString(std::ostream& out, std::string_view value) {
+void writeString(std::ostream &out, std::string_view value) {
     const auto size = static_cast<std::uint64_t>(value.size());
     writePod(out, size);
     writeBytes(out, value.data(), value.size());
 }
 
-std::string readString(std::istream& in) {
+std::string readString(std::istream &in) {
     const auto size = readPod<std::uint64_t>(in);
     std::string value(size, '\0');
     readBytes(in, value.data(), value.size());
     return value;
 }
 
-void writeValue(std::ostream& out, const Value& value) {
+void writeValue(std::ostream &out, const Value &value) {
     const auto type = static_cast<std::uint8_t>(value.type());
     writePod(out, type);
     switch (value.type()) {
-        case ColumnType::Int:
-            writePod(out, std::get<std::int64_t>(value.data()));
-            break;
-        case ColumnType::Double:
-            writePod(out, std::get<double>(value.data()));
-            break;
-        case ColumnType::String:
-            writeString(out, std::get<std::string>(value.data()));
-            break;
+    case ColumnType::Int:
+        writePod(out, std::get<std::int64_t>(value.data()));
+        break;
+    case ColumnType::Double:
+        writePod(out, std::get<double>(value.data()));
+        break;
+    case ColumnType::String:
+        writeString(out, std::get<std::string>(value.data()));
+        break;
     }
 }
 
-Value readValue(std::istream& in) {
+Value readValue(std::istream &in) {
     const auto type = static_cast<ColumnType>(readPod<std::uint8_t>(in));
     switch (type) {
-        case ColumnType::Int:
-            return Value{readPod<std::int64_t>(in)};
-        case ColumnType::Double:
-            return Value{readPod<double>(in)};
-        case ColumnType::String:
-            return Value{readString(in)};
+    case ColumnType::Int:
+        return Value{readPod<std::int64_t>(in)};
+    case ColumnType::Double:
+        return Value{readPod<double>(in)};
+    case ColumnType::String:
+        return Value{readString(in)};
     }
     throw std::runtime_error("unsupported value type in database file");
 }
 
-std::filesystem::path pathFor(const std::filesystem::path& root, std::string_view databaseName) {
+std::filesystem::path pathFor(const std::filesystem::path &root, std::string_view databaseName) {
     return root / (std::string{databaseName} + std::string{kExtension});
 }
 
-}  // namespace
+} // namespace
 
 StorageManager::StorageManager(std::filesystem::path root) : root_(std::move(root)) {}
 
-void StorageManager::saveDatabase(const Database& database) const {
+void StorageManager::saveDatabase(const Database &database) const {
     std::filesystem::create_directories(root_);
     std::ofstream out{pathFor(root_, database.name()), std::ios::binary};
     if (!out) {
@@ -100,11 +98,11 @@ void StorageManager::saveDatabase(const Database& database) const {
 
     const auto tables = database.tables();
     writePod(out, static_cast<std::uint64_t>(tables.size()));
-    for (const auto& table : tables) {
+    for (const auto &table : tables) {
         writeString(out, table->name());
 
         writePod(out, static_cast<std::uint64_t>(table->schema().size()));
-        for (const auto& column : table->schema()) {
+        for (const auto &column : table->schema()) {
             writeString(out, column.name);
             writePod(out, static_cast<std::uint8_t>(column.type));
             writePod(out, static_cast<std::uint8_t>(column.nullable ? 1 : 0));
@@ -112,15 +110,15 @@ void StorageManager::saveDatabase(const Database& database) const {
 
         const auto indexes = table->indexDefinitions();
         writePod(out, static_cast<std::uint64_t>(indexes.size()));
-        for (const auto& [indexName, columnName] : indexes) {
+        for (const auto &[indexName, columnName] : indexes) {
             writeString(out, indexName);
             writeString(out, columnName);
         }
 
         const auto rows = table->rowsSnapshot();
         writePod(out, static_cast<std::uint64_t>(rows.size()));
-        for (const auto& row : rows) {
-            for (const auto& value : row) {
+        for (const auto &row : rows) {
+            for (const auto &value : row) {
                 writeValue(out, value);
             }
         }
@@ -181,7 +179,7 @@ std::shared_ptr<Database> StorageManager::loadDatabase(std::string_view database
             rows.push_back(std::move(row));
         }
         table->replaceRows(std::move(rows));
-        for (const auto& [indexName, columnName] : indexDefinitions) {
+        for (const auto &[indexName, columnName] : indexDefinitions) {
             table->createIndex(indexName, columnName);
         }
     }
@@ -193,7 +191,7 @@ std::shared_ptr<Database> StorageManager::loadFirstDatabase() const {
     if (!std::filesystem::exists(root_)) {
         throw std::runtime_error("database storage directory does not exist");
     }
-    for (const auto& entry : std::filesystem::directory_iterator{root_}) {
+    for (const auto &entry : std::filesystem::directory_iterator{root_}) {
         if (entry.is_regular_file() && entry.path().extension() == kExtension) {
             return loadDatabase(entry.path().stem().string());
         }
@@ -205,4 +203,4 @@ bool StorageManager::metadataExists(std::string_view databaseName) const {
     return std::filesystem::exists(pathFor(root_, databaseName));
 }
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB

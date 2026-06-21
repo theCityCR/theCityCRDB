@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstdint>
+
 namespace theCityCRDB {
 
-enum class ComparisonOperator {
+enum class ComparisonOperator : std::uint8_t {
     Equal,
     Greater,
     Less,
 };
 
-}  // namespace theCityCRDB
+} // namespace theCityCRDB
