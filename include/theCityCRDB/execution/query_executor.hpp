@@ -12,6 +12,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace theCityCRDB {
 
@@ -39,6 +40,10 @@ private:
     [[nodiscard]] QueryResult executeCommit();
     [[nodiscard]] QueryResult executeRollback();
 
+    [[nodiscard]] std::vector<std::size_t> resolveProjection(const Select& command,
+                                                             const Table& table,
+                                                             std::vector<std::string>& columns) const;
+    [[nodiscard]] std::vector<Row> collectRows(const Select& command, const Table& table) const;
     [[nodiscard]] bool matches(const Row& row, const Table& table, const Predicate& predicate) const;
     [[nodiscard]] std::shared_ptr<Table> requireTable(std::string_view tableName) const;
 

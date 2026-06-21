@@ -55,4 +55,10 @@ TEST(ParserTests, ParsesTableManagementCommands) {
     EXPECT_TRUE(std::holds_alternative<ListTables>(parser.parse("LIST TABLES;")));
 }
 
+TEST(ParserTests, RejectsTrailingTokens) {
+    Parser parser;
+
+    EXPECT_THROW((void)parser.parse("SELECT * FROM Employees unexpected;"), std::runtime_error);
+}
+
 }  // namespace theCityCRDB

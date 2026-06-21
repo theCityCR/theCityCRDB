@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -34,9 +35,10 @@ public:
     void reset();
 
 private:
-    [[nodiscard]] std::uint64_t nextLsn() const;
+    [[nodiscard]] std::uint64_t nextLsn();
 
     std::filesystem::path path_;
+    std::optional<std::uint64_t> nextLsn_;
 };
 
 }  // namespace theCityCRDB

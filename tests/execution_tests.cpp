@@ -1,5 +1,6 @@
 #include "theCityCRDB/execution/query_executor.hpp"
 #include "theCityCRDB/parser/parser.hpp"
+#include "theCityCRDB/persistence/write_ahead_log.hpp"
 
 #include <gtest/gtest.h>
 
@@ -77,6 +78,48 @@ TEST(ExecutionTests, SavesAndLoadsDatabase) {
     auto result = loaded.execute(parser.parse("SELECT name FROM Employees WHERE id = 1;"));
     ASSERT_EQ(result.rows.size(), 1U);
     EXPECT_EQ(result.rows.front().front(), Value{std::string{"Alice"}});
+
+    std::filesystem::remove_all(root);
+}
+
+TEST(ExecutionTests, FailedMetadataOperationsDoNotPolluteWal) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_failed_wal_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+    QueryExecutor executor{root};
+
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT);")).success);
+    EXPECT_FALSE(executor.execute(parser.parse("CREATE TABLE Employees (id INT);")).success);
+    EXPECT_FALSE(executor.execute(parser.parse("DROP TABLE Missing;")).success);
+
+    WriteAheadLog wal{root / "theCityCRDB.wal"};
+    const auto records = wal.readAll();
+    ASSERT_EQ(records.size(), 2U);
+    EXPECT_EQ(records[0].operation, WalOperation::CreateDatabase);
+    EXPECT_EQ(records[1].operation, WalOperation::CreateTable);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST(ExecutionTests, FailedInsertDoesNotPolluteWal) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_failed_insert_wal_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+    QueryExecutor executor{root};
+
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT);")).success);
+    EXPECT_THROW((void)executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"extra\");")),
+                 std::invalid_argument);
+
+    WriteAheadLog wal{root / "theCityCRDB.wal"};
+    const auto records = wal.readAll();
+    ASSERT_EQ(records.size(), 2U);
+    EXPECT_EQ(records[0].operation, WalOperation::CreateDatabase);
+    EXPECT_EQ(records[1].operation, WalOperation::CreateTable);
 
     std::filesystem::remove_all(root);
 }

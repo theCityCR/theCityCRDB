@@ -1,6 +1,7 @@
 #include "theCityCRDB/common/value.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 
 namespace theCityCRDB {

@@ -86,8 +86,10 @@ QueryResult QueryExecutor::executeCreateTable(const CreateTable& command) {
     if (!database_) {
         return messageResult(false, "no active database");
     }
-    (void)wal_.append(WalOperation::CreateTable, command.name);
     const bool created = database_->createTable(command.name, command.columns);
+    if (created) {
+        (void)wal_.append(WalOperation::CreateTable, command.name);
+    }
     return messageResult(created, created ? "created table " + command.name : "table already exists");
 }
 
@@ -95,8 +97,10 @@ QueryResult QueryExecutor::executeDropTable(const DropTable& command) {
     if (!database_) {
         return messageResult(false, "no active database");
     }
-    (void)wal_.append(WalOperation::DropTable, command.name);
     const bool dropped = database_->dropTable(command.name);
+    if (dropped) {
+        (void)wal_.append(WalOperation::DropTable, command.name);
+    }
     return messageResult(dropped, dropped ? "dropped table " + command.name : "unknown table");
 }
 
@@ -104,8 +108,10 @@ QueryResult QueryExecutor::executeRenameTable(const RenameTable& command) {
     if (!database_) {
         return messageResult(false, "no active database");
     }
-    (void)wal_.append(WalOperation::RenameTable, command.oldName + "->" + command.newName);
     const bool renamed = database_->renameTable(command.oldName, command.newName);
+    if (renamed) {
+        (void)wal_.append(WalOperation::RenameTable, command.oldName + "->" + command.newName);
+    }
     return messageResult(renamed, renamed ? "renamed table " + command.oldName : "rename failed");
 }
 
@@ -124,63 +130,24 @@ QueryResult QueryExecutor::executeListTables() {
 
 QueryResult QueryExecutor::executeInsert(const Insert& command) {
     auto table = requireTable(command.table);
-    (void)wal_.append(WalOperation::Insert, command.table);
     table->insert(command.values);
+    (void)wal_.append(WalOperation::Insert, command.table);
     return messageResult(true, "inserted 1 row");
 }
 
 QueryResult QueryExecutor::executeSelect(const Select& command) {
     auto table = requireTable(command.table);
 
-    std::vector<std::size_t> projection;
     std::vector<std::string> columns;
-    if (command.columns.size() == 1 && command.columns.front() == "*") {
-        for (std::size_t i = 0; i < table->schema().size(); ++i) {
-            projection.push_back(i);
-            columns.push_back(table->schema()[i].name);
-        }
-    } else {
-        for (const auto& column : command.columns) {
-            auto index = table->columnIndex(column);
-            if (!index) {
-                throw std::runtime_error("unknown selected column");
-            }
-            projection.push_back(*index);
-            columns.push_back(column);
-        }
-    }
-
-    std::vector<Row> filtered;
-    bool usedIndex = false;
-    const auto plan = planner_.planSelect(command, *table);
-    if (command.where && plan.accessPath == AccessPath::HashIndexLookup) {
-        if (auto rowIds = table->indexedLookup(command.where->column, command.where->value)) {
-            usedIndex = true;
-            filtered = table->rowsById(*rowIds);
-        }
-    } else if (command.where && plan.accessPath == AccessPath::OrderedIndexRange) {
-        if (auto rowIds = table->orderedLookup(command.where->column, command.where->op, command.where->value)) {
-            usedIndex = true;
-            filtered = table->rowsById(*rowIds);
-        }
-    }
-
-    if (!usedIndex) {
-        const auto snapshot = table->rowsSnapshot();
-        for (const auto& row : snapshot) {
-            if (command.where && !matches(row, *table, *command.where)) {
-                continue;
-            }
-            filtered.push_back(row);
-        }
-    }
+    const auto projection = resolveProjection(command, *table, columns);
+    auto rows = collectRows(command, *table);
 
     if (command.orderBy) {
         const auto orderIndex = table->columnIndex(command.orderBy->column);
         if (!orderIndex) {
             throw std::runtime_error("unknown ORDER BY column");
         }
-        std::ranges::sort(filtered, [&](const Row& left, const Row& right) {
+        std::ranges::sort(rows, [&](const Row& left, const Row& right) {
             if (command.orderBy->ascending) {
                 return left[*orderIndex] < right[*orderIndex];
             }
@@ -189,7 +156,7 @@ QueryResult QueryExecutor::executeSelect(const Select& command) {
     }
 
     QueryResult result{true, "selected rows", std::move(columns), {}};
-    for (const auto& row : filtered) {
+    for (const auto& row : rows) {
         Row projected;
         projected.reserve(projection.size());
         for (const auto index : projection) {
@@ -216,8 +183,8 @@ QueryResult QueryExecutor::executeUpdate(const Update& command) {
         if (command.where && !matches(snapshot[rowId], *table, *command.where)) {
             continue;
         }
-        (void)wal_.append(WalOperation::Update, command.table + "." + command.column);
         if (table->update(rowId, *target, command.value)) {
+            (void)wal_.append(WalOperation::Update, command.table + "." + command.column);
             ++count;
         }
     }
@@ -233,8 +200,8 @@ QueryResult QueryExecutor::executeDelete(const Delete& command) {
         if (command.where && !matches(snapshot[actual], *table, *command.where)) {
             continue;
         }
-        (void)wal_.append(WalOperation::Delete, command.table);
         if (table->erase(actual)) {
+            (void)wal_.append(WalOperation::Delete, command.table);
             ++count;
         }
     }
@@ -243,8 +210,10 @@ QueryResult QueryExecutor::executeDelete(const Delete& command) {
 
 QueryResult QueryExecutor::executeCreateIndex(const CreateIndex& command) {
     auto table = requireTable(command.table);
-    (void)wal_.append(WalOperation::CreateIndex, command.table + "." + command.column);
     const bool created = table->createIndex(command.name, command.column);
+    if (created) {
+        (void)wal_.append(WalOperation::CreateIndex, command.table + "." + command.column);
+    }
     return messageResult(created, created ? "created index " + command.name : "index creation failed");
 }
 
@@ -300,6 +269,53 @@ QueryResult QueryExecutor::executeRollback() {
     database_ = transactionSnapshot_;
     transactionSnapshot_.reset();
     return messageResult(true, "rolled back transaction");
+}
+
+std::vector<std::size_t> QueryExecutor::resolveProjection(const Select& command,
+                                                          const Table& table,
+                                                          std::vector<std::string>& columns) const {
+    std::vector<std::size_t> projection;
+    if (command.columns.size() == 1 && command.columns.front() == "*") {
+        for (std::size_t i = 0; i < table.schema().size(); ++i) {
+            projection.push_back(i);
+            columns.push_back(table.schema()[i].name);
+        }
+        return projection;
+    }
+
+    for (const auto& column : command.columns) {
+        auto index = table.columnIndex(column);
+        if (!index) {
+            throw std::runtime_error("unknown selected column");
+        }
+        projection.push_back(*index);
+        columns.push_back(column);
+    }
+    return projection;
+}
+
+std::vector<Row> QueryExecutor::collectRows(const Select& command, const Table& table) const {
+    const auto plan = planner_.planSelect(command, table);
+    if (command.where && plan.accessPath == AccessPath::HashIndexLookup) {
+        if (auto rowIds = table.indexedLookup(command.where->column, command.where->value)) {
+            return table.rowsById(*rowIds);
+        }
+    }
+    if (command.where && plan.accessPath == AccessPath::OrderedIndexRange) {
+        if (auto rowIds = table.orderedLookup(command.where->column, command.where->op, command.where->value)) {
+            return table.rowsById(*rowIds);
+        }
+    }
+
+    std::vector<Row> rows;
+    const auto snapshot = table.rowsSnapshot();
+    for (const auto& row : snapshot) {
+        if (command.where && !matches(row, table, *command.where)) {
+            continue;
+        }
+        rows.push_back(row);
+    }
+    return rows;
 }
 
 bool QueryExecutor::matches(const Row& row, const Table& table, const Predicate& predicate) const {

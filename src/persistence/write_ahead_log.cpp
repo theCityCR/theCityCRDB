@@ -83,13 +83,19 @@ void WriteAheadLog::reset() {
         std::filesystem::create_directories(path_.parent_path());
     }
     std::ofstream out{path_, std::ios::binary | std::ios::trunc};
+    nextLsn_ = 1;
 }
 
-std::uint64_t WriteAheadLog::nextLsn() const {
+std::uint64_t WriteAheadLog::nextLsn() {
+    if (nextLsn_) {
+        return (*nextLsn_)++;
+    }
+
     std::uint64_t next = 1;
     for (const auto& record : readAll()) {
         next = std::max(next, record.lsn + 1);
     }
+    nextLsn_ = next + 1;
     return next;
 }
 

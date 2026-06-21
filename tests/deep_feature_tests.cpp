@@ -56,6 +56,25 @@ TEST(DeepFeatureTests, WriteAheadLogAppendsAndReadsRecords) {
     std::filesystem::remove_all(root);
 }
 
+TEST(DeepFeatureTests, WriteAheadLogContinuesLsnAfterReopen) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_wal_reopen_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto path = root / "test.wal";
+
+    {
+        WriteAheadLog wal{path};
+        wal.reset();
+        EXPECT_EQ(wal.append(WalOperation::CreateDatabase, "company"), 1U);
+    }
+    {
+        WriteAheadLog wal{path};
+        EXPECT_EQ(wal.append(WalOperation::Insert, "Employees"), 2U);
+    }
+
+    std::filesystem::remove_all(root);
+}
+
 TEST(DeepFeatureTests, PlannerChoosesIndexAccessPaths) {
     Table table{"Employees", {{"id", ColumnType::Int}, {"salary", ColumnType::Double}}};
     ASSERT_TRUE(table.createIndex("idx_id", "id"));

@@ -131,12 +131,7 @@ RowId Table::insert(Row row) {
     std::unique_lock lock{mutex_};
     rows_.push_back(std::move(row));
     const RowId rowId = rows_.size() - 1;
-    for (auto& [name, index] : indexes_) {
-        index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
-    }
-    for (auto& [name, index] : orderedIndexes_) {
-        index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
-    }
+    addRowToIndexes(rowId);
     return rowId;
 }
 
@@ -203,6 +198,15 @@ void Table::validateRow(const Row& row) const {
     }
 }
 
+void Table::addRowToIndexes(RowId rowId) {
+    for (auto& [name, index] : indexes_) {
+        index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
+    }
+    for (auto& [name, index] : orderedIndexes_) {
+        index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
+    }
+}
+
 void Table::rebuildIndexes() {
     for (auto& [_, index] : indexes_) {
         index.clear();
@@ -211,12 +215,7 @@ void Table::rebuildIndexes() {
         index.clear();
     }
     for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
-        for (auto& [name, index] : indexes_) {
-            index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
-        }
-        for (auto& [name, index] : orderedIndexes_) {
-            index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
-        }
+        addRowToIndexes(rowId);
     }
 }
 

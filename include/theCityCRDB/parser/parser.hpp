@@ -18,6 +18,7 @@ private:
     [[nodiscard]] const Token& advance();
     [[nodiscard]] bool match(TokenType type, std::string_view lexeme = {});
     void expect(TokenType type, std::string_view lexeme = {});
+    void expectStatementEnd();
 
     [[nodiscard]] CreateDatabase parseCreateDatabase();
     [[nodiscard]] CreateTable parseCreateTable();

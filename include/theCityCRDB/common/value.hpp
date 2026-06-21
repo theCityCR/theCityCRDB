@@ -1,10 +1,10 @@
 #pragma once
 
-#include <compare>
 #include <cstdint>
 #include <optional>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <variant>
 
 namespace theCityCRDB {

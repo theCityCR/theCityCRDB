@@ -1,7 +1,7 @@
 #pragma once
 
-#include "theCityCRDB/common/value.hpp"
 #include "theCityCRDB/common/comparison_operator.hpp"
+#include "theCityCRDB/common/value.hpp"
 #include "theCityCRDB/indexing/btree_index.hpp"
 #include "theCityCRDB/indexing/hash_index.hpp"
 #include "theCityCRDB/storage/row.hpp"
@@ -11,6 +11,7 @@
 #include <shared_mutex>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace theCityCRDB {
@@ -44,6 +45,7 @@ public:
 
 private:
     void validateRow(const Row& row) const;
+    void addRowToIndexes(RowId rowId);
     void rebuildIndexes();
 
     std::string name_;

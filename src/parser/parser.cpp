@@ -38,62 +38,67 @@ Query Parser::parse(std::span<const Token> tokens) {
     tokens_ = tokens;
     current_ = 0;
 
+    auto finish = [this](Query query) {
+        expectStatementEnd();
+        return query;
+    };
+
     if (match(TokenType::Identifier, "CREATE")) {
         if (match(TokenType::Identifier, "DATABASE")) {
-            return parseCreateDatabase();
+            return finish(parseCreateDatabase());
         }
         if (match(TokenType::Identifier, "TABLE")) {
-            return parseCreateTable();
+            return finish(parseCreateTable());
         }
         if (match(TokenType::Identifier, "INDEX")) {
-            return parseCreateIndex();
+            return finish(parseCreateIndex());
         }
         throw std::runtime_error("expected DATABASE, TABLE, or INDEX after CREATE");
     }
     if (match(TokenType::Identifier, "DROP")) {
-        return parseDropTable();
+        return finish(parseDropTable());
     }
     if (match(TokenType::Identifier, "RENAME")) {
-        return parseRenameTable();
+        return finish(parseRenameTable());
     }
     if (match(TokenType::Identifier, "LIST")) {
         expect(TokenType::Identifier, "TABLES");
-        return ListTables{};
+        return finish(ListTables{});
     }
     if (match(TokenType::Identifier, "INSERT")) {
-        return parseInsert();
+        return finish(parseInsert());
     }
     if (match(TokenType::Identifier, "SELECT")) {
-        return parseSelect();
+        return finish(parseSelect());
     }
     if (match(TokenType::Identifier, "UPDATE")) {
-        return parseUpdate();
+        return finish(parseUpdate());
     }
     if (match(TokenType::Identifier, "DELETE")) {
-        return parseDelete();
+        return finish(parseDelete());
     }
     if (match(TokenType::Identifier, "SAVE")) {
         expect(TokenType::Identifier, "DATABASE");
-        return SaveDatabase{};
+        return finish(SaveDatabase{});
     }
     if (match(TokenType::Identifier, "LOAD")) {
         expect(TokenType::Identifier, "DATABASE");
         if (peek().type == TokenType::Identifier) {
-            return LoadDatabase{advance().lexeme};
+            return finish(LoadDatabase{advance().lexeme});
         }
-        return LoadDatabase{};
+        return finish(LoadDatabase{});
     }
     if (match(TokenType::Identifier, "BEGIN")) {
-        return BeginTransaction{};
+        return finish(BeginTransaction{});
     }
     if (match(TokenType::Identifier, "COMMIT")) {
-        return CommitTransaction{};
+        return finish(CommitTransaction{});
     }
     if (match(TokenType::Identifier, "ROLLBACK")) {
-        return RollbackTransaction{};
+        return finish(RollbackTransaction{});
     }
     if (match(TokenType::Identifier, "EXIT")) {
-        return Exit{};
+        return finish(Exit{});
     }
 
     throw std::runtime_error("unsupported SQL command");
@@ -129,6 +134,13 @@ bool Parser::match(TokenType type, std::string_view lexeme) {
 void Parser::expect(TokenType type, std::string_view lexeme) {
     if (!match(type, lexeme)) {
         throw std::runtime_error("unexpected token");
+    }
+}
+
+void Parser::expectStatementEnd() {
+    (void)match(TokenType::Semicolon);
+    if (peek().type != TokenType::End) {
+        throw std::runtime_error("unexpected trailing token");
     }
 }
 
