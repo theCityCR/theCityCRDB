@@ -45,4 +45,4 @@ cmake --build build-benchmark
 ```
 
 Use sanitizer and coverage builds before changing shared systems such as `Table`, `QueryExecutor`,
-`StorageManager`, indexes, or transaction code.
+`StorageManager`, indexes, or transaction code. 
