@@ -3,6 +3,7 @@
 #include "theCityCRDB/parser/parser.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <optional>
 #include <span>
@@ -498,17 +499,17 @@ std::vector<Row> QueryExecutor::collectRows(const Select &command, const Table &
     const auto *predicate = simpleComparison(command.where);
     if (predicate != nullptr && plan.accessPath == AccessPath::HashIndexLookup) {
         if (auto rowIds = table.indexedLookup(predicate->column, predicate->value)) {
-            return table.rowsById(*rowIds);
+            return rowsByIdForRead(table, *rowIds);
         }
     }
     if (predicate != nullptr && plan.accessPath == AccessPath::OrderedIndexRange) {
         if (auto rowIds = table.orderedLookup(predicate->column, predicate->op, predicate->value)) {
-            return table.rowsById(*rowIds);
+            return rowsByIdForRead(table, *rowIds);
         }
     }
 
     std::vector<Row> rows;
-    const auto snapshot = table.rowsSnapshot();
+    const auto snapshot = rowsSnapshotForRead(table);
     for (const auto &row : snapshot) {
         if (command.where && !matches(row, table, *command.where)) {
             continue;
@@ -557,8 +558,8 @@ QueryResult QueryExecutor::executeJoinSelect(const Select &command) {
         }
     }
 
-    const auto leftRows = leftTable->rowsSnapshot();
-    const auto rightRows = rightTable->rowsSnapshot();
+    const auto leftRows = rowsSnapshotForRead(*leftTable);
+    const auto rightRows = rowsSnapshotForRead(*rightTable);
     std::map<Value, std::vector<Row>> rightRowsByKey;
     for (const auto &row : rightRows) {
         rightRowsByKey[row[*rightJoinColumn]].push_back(row);
@@ -678,6 +679,28 @@ std::string QueryExecutor::bindPreparedSql(const ExecutePrepared &command) const
         throw std::runtime_error("too many prepared statement parameters");
     }
     return bound.str();
+}
+
+std::optional<TransactionId> QueryExecutor::readVersion() const {
+    if (!activeTransaction_) {
+        return std::nullopt;
+    }
+    return std::numeric_limits<TransactionId>::max();
+}
+
+std::vector<Row> QueryExecutor::rowsSnapshotForRead(const Table &table) const {
+    if (const auto version = readVersion()) {
+        return table.rowsSnapshot(*version);
+    }
+    return table.rowsSnapshot();
+}
+
+std::vector<Row> QueryExecutor::rowsByIdForRead(const Table &table,
+                                                std::span<const RowId> rowIds) const {
+    if (const auto version = readVersion()) {
+        return table.rowsById(rowIds, *version);
+    }
+    return table.rowsById(rowIds);
 }
 
 void QueryExecutor::recoverFromStorage() {

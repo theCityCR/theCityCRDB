@@ -73,6 +73,32 @@ TEST(ExecutionTests, RollsBackTransactions) {
     EXPECT_TRUE(result.rows.empty());
 }
 
+TEST(ExecutionTests, TransactionalIndexedReadsUseMvccBoundary) {
+    Parser parser;
+    QueryExecutor executor;
+
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING);")).success);
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE INDEX idx_id ON Employees(id);")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\");")).success);
+
+    ASSERT_TRUE(executor.execute(parser.parse("BEGIN;")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("UPDATE Employees SET name = \"Alicia\" WHERE id = 1;"))
+            .success);
+
+    auto inTransaction = executor.execute(parser.parse("SELECT name FROM Employees WHERE id = 1;"));
+    ASSERT_EQ(inTransaction.rows.size(), 1U);
+    EXPECT_EQ(inTransaction.rows.front().front(), Value{std::string{"Alicia"}});
+
+    ASSERT_TRUE(executor.execute(parser.parse("ROLLBACK;")).success);
+    auto afterRollback = executor.execute(parser.parse("SELECT name FROM Employees WHERE id = 1;"));
+    ASSERT_EQ(afterRollback.rows.size(), 1U);
+    EXPECT_EQ(afterRollback.rows.front().front(), Value{std::string{"Alice"}});
+}
+
 TEST(ExecutionTests, SavesAndLoadsDatabase) {
     const auto root = std::filesystem::temp_directory_path() /
                       ("theCityCRDB_test_" +

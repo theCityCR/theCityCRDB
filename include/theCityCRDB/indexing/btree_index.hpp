@@ -15,6 +15,7 @@ struct BTreeNode {
     BTreePageId pageId{};
     bool leaf{true};
     std::vector<Value> keys;
+    std::vector<std::vector<RowId>> rowIds;
     std::vector<BTreePageId> children;
     std::optional<BTreePageId> nextLeaf;
 };

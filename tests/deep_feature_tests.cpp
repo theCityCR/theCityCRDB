@@ -42,9 +42,24 @@ TEST(DeepFeatureTests, BTreeIndexMaintainsPageLayoutMetadata) {
     ASSERT_EQ(nodes.size(), 4U);
     EXPECT_TRUE(nodes[0].leaf);
     EXPECT_EQ(nodes[0].nextLeaf, nodes[1].pageId);
+    EXPECT_EQ(nodes[0].rowIds.front(), std::vector<RowId>{10});
     EXPECT_FALSE(nodes.back().leaf);
     EXPECT_EQ(nodes.back().children.size(), 3U);
     EXPECT_EQ(nodes.back().keys.size(), 2U);
+}
+
+TEST(DeepFeatureTests, BTreeIndexReadsFromLeafPayloadsAfterMutation) {
+    BTreeIndex index{2};
+    index.insert(Value{1}, 10);
+    index.insert(Value{1}, 11);
+    index.insert(Value{2}, 20);
+    index.insert(Value{3}, 30);
+
+    index.remove(Value{1}, 10);
+
+    EXPECT_EQ(index.find(Value{1}), std::vector<RowId>{11});
+    EXPECT_EQ(index.lessThan(Value{3}), (std::vector<RowId>{11, 20}));
+    EXPECT_EQ(index.greaterThan(Value{1}), (std::vector<RowId>{20, 30}));
 }
 
 TEST(DeepFeatureTests, BTreeIndexRemovesClearsAndHandlesMissingKeys) {

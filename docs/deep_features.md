@@ -9,10 +9,10 @@ The first implementation exposes B+ tree behavior through an ordered index API:
 - greater-than range lookup
 - ordered row id storage per key
 
-Internally it uses ordered entries for lookup correctness while also maintaining explicit B+ tree
-layout metadata: leaf page ids, linked leaves, root children, and separator keys. This gives the
-storage engine stable ordered-index behavior today while preserving the public boundary for
-page-backed split/merge node operations.
+Internally it maintains explicit B+ tree layout metadata: leaf page ids, linked leaves, root
+children, separator keys, and row-id payloads in leaves. Point and range reads walk the leaf payloads.
+Ordered entries are retained as the mutation staging structure so inserts and deletes can rebuild a
+deterministic shallow layout until full incremental split/merge logic is warranted.
 
 ## Write-Ahead Log
 
@@ -49,14 +49,15 @@ using table statistics.
 
 The MVCC layer introduces transaction identifiers, transaction state management, and row-version
 chains. `Table` records row versions during inserts, updates, deletes, and row replacement, and it
-now exposes transaction-aware snapshot APIs. User-facing transactions still use snapshot rollback
-semantics while future executor isolation work can route transactional reads through those APIs.
+exposes transaction-aware snapshot APIs. The executor now routes active-transaction reads through
+those APIs, while user-facing rollback still restores the snapshot copy captured at `BEGIN`.
 
 ## Buffer Pool
 
-The buffer pool is an LRU cache for fixed-size page payloads. `Table` now delegates physical row
-storage through a `RowStore` interface. The current implementation uses `VectorRowStore`; a future
-`PageRowStore` can adopt `BufferPool` behind the same table API.
+The buffer pool is an LRU cache for fixed-size page payloads. `Table` delegates physical row storage
+through a `RowStore` interface and defaults to `PageRowStore`, which groups rows into compact pages
+and mirrors page bytes through the LRU buffer pool. `VectorRowStore` remains available for simple
+in-memory storage tests.
 
 ## Query Planner
 

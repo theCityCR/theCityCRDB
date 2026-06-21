@@ -12,7 +12,7 @@ CLI
  |   +-- Table
  |   +-- RowStore
  |   |   +-- VectorRowStore
- |   |   +-- PageRowStore (next)
+ |   |   +-- PageRowStore
  |   +-- Row
  |   +-- BufferPool
  |
@@ -44,17 +44,18 @@ CLI
 ## Architectural Boundaries
 
 `Table` owns schema validation and index maintenance, but delegates physical row storage to the
-`RowStore` interface. `VectorRowStore` preserves current in-memory behavior. A future
-`PageRowStore` can use `BufferPool` without changing executor or database code.
+`RowStore` interface. `PageRowStore` is the default implementation and stores rows in compact
+buffer-pool-backed pages. `VectorRowStore` remains available as a simple in-memory implementation
+for focused tests or future comparisons.
 
 `BTreeIndex` keeps the existing ordered lookup API while maintaining `BTreeNode` layout metadata
-with page ids, leaf links, root children, and separator keys. The current implementation still uses
-ordered entries for lookup correctness, but the page metadata is the boundary for replacing it with
-real split/merge node operations.
+with page ids, leaf links, root children, separator keys, and row-id payloads in leaves. Lookup and
+range reads use the leaf payloads; ordered entries remain as the mutation staging structure that
+keeps node rebuilds deterministic.
 
 `Table` exposes transaction-aware snapshots through `rowsSnapshot(TransactionId)` and
-`rowsById(..., TransactionId)`. Normal executor reads still use the latest committed physical view,
-while future isolation work can route transactional reads through the MVCC boundary.
+`rowsById(..., TransactionId)`. The executor routes active-transaction reads through those MVCC
+APIs while retaining snapshot-copy rollback semantics for transaction undo.
 
 ## Current Data Flow
 

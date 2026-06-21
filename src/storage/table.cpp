@@ -7,7 +7,7 @@
 namespace theCityCRDB {
 
 Table::Table(std::string name, std::vector<Column> schema)
-    : name_(std::move(name)), schema_(std::move(schema)), rowStore_(makeVectorRowStore()) {
+    : name_(std::move(name)), schema_(std::move(schema)), rowStore_(makePageRowStore()) {
     if (name_.empty()) {
         throw std::invalid_argument("table name cannot be empty");
     }

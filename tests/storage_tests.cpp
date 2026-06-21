@@ -1,4 +1,5 @@
 #include "theCityCRDB/storage/database.hpp"
+#include "theCityCRDB/storage/row_store.hpp"
 
 #include <gtest/gtest.h>
 #include <thread>
@@ -78,6 +79,29 @@ TEST(StorageTests, ProvidesTransactionVisibleSnapshotsThroughMvccBoundary) {
     auto byId = table.rowsById(std::vector<RowId>{rowId}, TransactionId{1});
     ASSERT_EQ(byId.size(), 1U);
     EXPECT_EQ(byId.front()[1], Value{std::string{"Alice"}});
+}
+
+TEST(StorageTests, PageRowStoreStoresRowsAcrossBufferPages) {
+    PageRowStore store{2, 2};
+
+    const auto first = store.append({Value{1}, Value{std::string{"Alice"}}});
+    const auto second = store.append({Value{2}, Value{std::string{"Bob"}}});
+    const auto third = store.append({Value{3}, Value{std::string{"Cara"}}});
+
+    EXPECT_EQ(first, 0U);
+    EXPECT_EQ(second, 1U);
+    EXPECT_EQ(third, 2U);
+    ASSERT_EQ(store.size(), 3U);
+    ASSERT_NE(store.get(third), nullptr);
+    EXPECT_EQ((*store.get(third))[1], Value{std::string{"Cara"}});
+
+    ASSERT_TRUE(store.update(second, {Value{20}, Value{std::string{"Bobby"}}}));
+    EXPECT_EQ((*store.get(second))[0], Value{20});
+    EXPECT_EQ(store.rowsById(std::vector<RowId>{first, third}).size(), 2U);
+
+    ASSERT_TRUE(store.erase(first));
+    ASSERT_EQ(store.size(), 2U);
+    EXPECT_EQ((*store.get(0))[0], Value{20});
 }
 
 TEST(StorageTests, SupportsConcurrentInserts) {

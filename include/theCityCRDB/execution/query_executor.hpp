@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -54,6 +55,10 @@ class QueryExecutor {
     [[nodiscard]] std::shared_ptr<Table> requireTable(std::string_view tableName) const;
     [[nodiscard]] QueryResult executeUnlocked(const Query &query);
     [[nodiscard]] std::string bindPreparedSql(const ExecutePrepared &command) const;
+    [[nodiscard]] std::optional<TransactionId> readVersion() const;
+    [[nodiscard]] std::vector<Row> rowsSnapshotForRead(const Table &table) const;
+    [[nodiscard]] std::vector<Row> rowsByIdForRead(const Table &table,
+                                                   std::span<const RowId> rowIds) const;
     void recoverFromStorage();
     void recoverFromWal(bool loadedSnapshot);
     void appendWal(WalOperation operation, std::string payload);
