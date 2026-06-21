@@ -10,29 +10,51 @@ CLI
  +-- Storage Engine
  |   +-- Database
  |   +-- Table
+ |   +-- RowStore
+ |   |   +-- VectorRowStore
+ |   |   +-- PageRowStore (next)
  |   +-- Row
+ |   +-- BufferPool
  |
  +-- Index Manager
  |   +-- HashIndex
- |   +-- BTreeIndex (planned)
+ |   +-- BTreeIndex
+ |       +-- BTreeNode layout metadata
  |
  +-- Persistence Layer
  |   +-- StorageManager
  |
  +-- Concurrency
      +-- LockManager
-     +-- TransactionManager (planned)
+     +-- TransactionManager
+     +-- MVCCRowStore
 ```
 
 ## Module Responsibilities
 
 - `common`: shared value types, column metadata, and low-level utilities.
 - `parser`: tokenization, AST construction, and SQL grammar validation.
-- `storage`: in-memory database, table, row, schema, and page abstractions.
+- `storage`: database/table ownership, row storage boundaries, schema validation, and page cache
+  abstractions.
 - `execution`: command dispatch, predicate evaluation, projection, and result construction.
-- `indexing`: hash indexes now; B+ tree indexes later.
+- `indexing`: hash indexes and ordered B+ tree index APIs with explicit node/page layout metadata.
 - `persistence`: binary serialization, versioning, save/load, and recovery.
-- `concurrency`: reader/writer synchronization and later transaction coordination.
+- `concurrency`: reader/writer synchronization and transaction coordination.
+
+## Architectural Boundaries
+
+`Table` owns schema validation and index maintenance, but delegates physical row storage to the
+`RowStore` interface. `VectorRowStore` preserves current in-memory behavior. A future
+`PageRowStore` can use `BufferPool` without changing executor or database code.
+
+`BTreeIndex` keeps the existing ordered lookup API while maintaining `BTreeNode` layout metadata
+with page ids, leaf links, root children, and separator keys. The current implementation still uses
+ordered entries for lookup correctness, but the page metadata is the boundary for replacing it with
+real split/merge node operations.
+
+`Table` exposes transaction-aware snapshots through `rowsSnapshot(TransactionId)` and
+`rowsById(..., TransactionId)`. Normal executor reads still use the latest committed physical view,
+while future isolation work can route transactional reads through the MVCC boundary.
 
 ## Current Data Flow
 

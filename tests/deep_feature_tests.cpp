@@ -27,6 +27,26 @@ TEST(DeepFeatureTests, BTreeIndexSupportsRangeLookup) {
     EXPECT_EQ(index.greaterThan(Value{1}), (std::vector<RowId>{20, 30}));
 }
 
+TEST(DeepFeatureTests, BTreeIndexMaintainsPageLayoutMetadata) {
+    BTreeIndex index{2};
+    index.insert(Value{1}, 10);
+    index.insert(Value{2}, 20);
+    index.insert(Value{3}, 30);
+    index.insert(Value{4}, 40);
+    index.insert(Value{5}, 50);
+
+    EXPECT_EQ(index.leafPageCount(), 3U);
+    EXPECT_EQ(index.height(), 2U);
+
+    const auto nodes = index.nodesSnapshot();
+    ASSERT_EQ(nodes.size(), 4U);
+    EXPECT_TRUE(nodes[0].leaf);
+    EXPECT_EQ(nodes[0].nextLeaf, nodes[1].pageId);
+    EXPECT_FALSE(nodes.back().leaf);
+    EXPECT_EQ(nodes.back().children.size(), 3U);
+    EXPECT_EQ(nodes.back().keys.size(), 2U);
+}
+
 TEST(DeepFeatureTests, BTreeIndexRemovesClearsAndHandlesMissingKeys) {
     BTreeIndex index;
     index.insert(Value{1}, 10);

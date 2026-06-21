@@ -34,6 +34,29 @@ std::optional<Row> MVCCRowStore::read(RowId rowId, TransactionId readerId) const
     return std::nullopt;
 }
 
+std::vector<Row> MVCCRowStore::visibleRows(TransactionId readerId) const {
+    std::vector<Row> rows;
+    rows.reserve(versions_.size());
+    for (const auto &[rowId, _] : versions_) {
+        if (auto row = read(rowId, readerId)) {
+            rows.push_back(std::move(*row));
+        }
+    }
+    return rows;
+}
+
+std::vector<Row> MVCCRowStore::visibleRowsById(std::span<const RowId> rowIds,
+                                               TransactionId readerId) const {
+    std::vector<Row> rows;
+    rows.reserve(rowIds.size());
+    for (const auto rowId : rowIds) {
+        if (auto row = read(rowId, readerId)) {
+            rows.push_back(std::move(*row));
+        }
+    }
+    return rows;
+}
+
 std::size_t MVCCRowStore::versionCount(RowId rowId) const {
     auto it = versions_.find(rowId);
     if (it == versions_.end()) {

@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <thread>
+#include <vector>
 
 namespace theCityCRDB {
 
@@ -58,6 +59,25 @@ TEST(StorageTests, TracksRowVersionsAcrossTableMutations) {
 
     ASSERT_TRUE(table.erase(rowId));
     EXPECT_EQ(table.versionCount(rowId), 2U);
+}
+
+TEST(StorageTests, ProvidesTransactionVisibleSnapshotsThroughMvccBoundary) {
+    Table table{"Employees", {{"id", ColumnType::Int}, {"name", ColumnType::String}}};
+
+    const auto rowId = table.insert({Value{1}, Value{std::string{"Alice"}}});
+    ASSERT_TRUE(table.update(rowId, 1, Value{std::string{"Alicia"}}));
+
+    auto initialView = table.rowsSnapshot(TransactionId{1});
+    ASSERT_EQ(initialView.size(), 1U);
+    EXPECT_EQ(initialView.front()[1], Value{std::string{"Alice"}});
+
+    auto updatedView = table.rowsSnapshot(TransactionId{2});
+    ASSERT_EQ(updatedView.size(), 1U);
+    EXPECT_EQ(updatedView.front()[1], Value{std::string{"Alicia"}});
+
+    auto byId = table.rowsById(std::vector<RowId>{rowId}, TransactionId{1});
+    ASSERT_EQ(byId.size(), 1U);
+    EXPECT_EQ(byId.front()[1], Value{std::string{"Alice"}});
 }
 
 TEST(StorageTests, SupportsConcurrentInserts) {

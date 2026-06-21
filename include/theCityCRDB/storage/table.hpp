@@ -5,9 +5,11 @@
 #include "theCityCRDB/indexing/btree_index.hpp"
 #include "theCityCRDB/indexing/hash_index.hpp"
 #include "theCityCRDB/storage/row.hpp"
+#include "theCityCRDB/storage/row_store.hpp"
 #include "theCityCRDB/transaction/mvcc_row_store.hpp"
 
 #include <map>
+#include <memory>
 #include <optional>
 #include <shared_mutex>
 #include <span>
@@ -25,7 +27,10 @@ class Table {
     [[nodiscard]] std::span<const Column> schema() const noexcept;
     [[nodiscard]] std::optional<std::size_t> columnIndex(std::string_view column) const;
     [[nodiscard]] std::vector<Row> rowsSnapshot() const;
+    [[nodiscard]] std::vector<Row> rowsSnapshot(TransactionId readerId) const;
     [[nodiscard]] std::vector<Row> rowsById(std::span<const RowId> rowIds) const;
+    [[nodiscard]] std::vector<Row> rowsById(std::span<const RowId> rowIds,
+                                            TransactionId readerId) const;
     [[nodiscard]] std::size_t rowCount() const;
     [[nodiscard]] std::vector<RowId> findIndexed(std::string_view column, const Value &value) const;
     [[nodiscard]] std::optional<std::vector<RowId>> indexedLookup(std::string_view column,
@@ -51,7 +56,7 @@ class Table {
 
     std::string name_;
     std::vector<Column> schema_;
-    std::vector<Row> rows_;
+    std::unique_ptr<RowStore> rowStore_;
     std::map<std::string, std::size_t> indexColumns_;
     std::map<std::string, HashIndex> indexes_;
     std::map<std::string, BTreeIndex> orderedIndexes_;

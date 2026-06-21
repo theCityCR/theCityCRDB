@@ -28,6 +28,7 @@ add_library(theCityCRDB
     src/parser/tokenizer.cpp
     src/storage/database.cpp
     src/storage/buffer_pool.cpp
+    src/storage/row_store.cpp
     src/storage/table.cpp
     src/indexing/btree_index.cpp
     src/indexing/hash_index.cpp

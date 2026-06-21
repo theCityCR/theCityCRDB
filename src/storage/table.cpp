@@ -7,7 +7,7 @@
 namespace theCityCRDB {
 
 Table::Table(std::string name, std::vector<Column> schema)
-    : name_(std::move(name)), schema_(std::move(schema)) {
+    : name_(std::move(name)), schema_(std::move(schema)), rowStore_(makeVectorRowStore()) {
     if (name_.empty()) {
         throw std::invalid_argument("table name cannot be empty");
     }
@@ -31,24 +31,27 @@ std::optional<std::size_t> Table::columnIndex(std::string_view column) const {
 
 std::vector<Row> Table::rowsSnapshot() const {
     std::shared_lock lock{mutex_};
-    return rows_;
+    return rowStore_->snapshot();
+}
+
+std::vector<Row> Table::rowsSnapshot(TransactionId readerId) const {
+    std::shared_lock lock{mutex_};
+    return versions_.visibleRows(readerId);
 }
 
 std::vector<Row> Table::rowsById(std::span<const RowId> rowIds) const {
     std::shared_lock lock{mutex_};
-    std::vector<Row> rows;
-    rows.reserve(rowIds.size());
-    for (const auto rowId : rowIds) {
-        if (rowId < rows_.size()) {
-            rows.push_back(rows_[rowId]);
-        }
-    }
-    return rows;
+    return rowStore_->rowsById(rowIds);
+}
+
+std::vector<Row> Table::rowsById(std::span<const RowId> rowIds, TransactionId readerId) const {
+    std::shared_lock lock{mutex_};
+    return versions_.visibleRowsById(rowIds, readerId);
 }
 
 std::size_t Table::rowCount() const {
     std::shared_lock lock{mutex_};
-    return rows_.size();
+    return rowStore_->size();
 }
 
 std::vector<RowId> Table::findIndexed(std::string_view column, const Value &value) const {
@@ -126,27 +129,29 @@ std::size_t Table::versionCount(RowId rowId) const {
 RowId Table::insert(Row row) {
     validateRow(row);
     std::unique_lock lock{mutex_};
-    rows_.push_back(std::move(row));
-    const RowId rowId = rows_.size() - 1;
-    versions_.write(rowId, rows_[rowId], nextVersionTransactionId_++);
+    const RowId rowId = rowStore_->append(std::move(row));
+    versions_.write(rowId, *rowStore_->get(rowId), nextVersionTransactionId_++);
     addRowToIndexes(rowId);
     return rowId;
 }
 
 bool Table::erase(RowId rowId) {
     std::unique_lock lock{mutex_};
-    if (rowId >= rows_.size()) {
+    if (rowId >= rowStore_->size()) {
         return false;
     }
     versions_.erase(rowId, nextVersionTransactionId_++);
-    rows_.erase(rows_.begin() + static_cast<std::ptrdiff_t>(rowId));
+    const bool erased = rowStore_->erase(rowId);
+    if (!erased) {
+        return false;
+    }
     rebuildIndexes();
     return true;
 }
 
 bool Table::update(RowId rowId, std::size_t index, Value value) {
     std::unique_lock lock{mutex_};
-    if (rowId >= rows_.size() || index >= schema_.size()) {
+    if (rowId >= rowStore_->size() || index >= schema_.size()) {
         return false;
     }
     if (value.isNull()) {
@@ -156,8 +161,13 @@ bool Table::update(RowId rowId, std::size_t index, Value value) {
     } else if (value.type() != schema_[index].type) {
         throw std::invalid_argument("updated value does not match column type");
     }
-    rows_[rowId][index] = std::move(value);
-    versions_.write(rowId, rows_[rowId], nextVersionTransactionId_++);
+    auto updated = *rowStore_->get(rowId);
+    updated[index] = std::move(value);
+    const bool updatedRow = rowStore_->update(rowId, updated);
+    if (!updatedRow) {
+        return false;
+    }
+    versions_.write(rowId, *rowStore_->get(rowId), nextVersionTransactionId_++);
     rebuildIndexes();
     return true;
 }
@@ -175,9 +185,10 @@ bool Table::createIndex(std::string name, std::string column) {
     indexColumns_.emplace(name, *indexColumn);
     indexes_.try_emplace(name);
     orderedIndexes_.try_emplace(name);
-    for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
-        indexes_.at(name).insert(rows_[rowId][*indexColumn], rowId);
-        orderedIndexes_.at(name).insert(rows_[rowId][*indexColumn], rowId);
+    for (RowId rowId = 0; rowId < rowStore_->size(); ++rowId) {
+        const auto *row = rowStore_->get(rowId);
+        indexes_.at(name).insert((*row)[*indexColumn], rowId);
+        orderedIndexes_.at(name).insert((*row)[*indexColumn], rowId);
     }
     return true;
 }
@@ -187,11 +198,11 @@ void Table::replaceRows(std::vector<Row> rows) {
         validateRow(row);
     }
     std::unique_lock lock{mutex_};
-    rows_ = std::move(rows);
+    rowStore_->replaceRows(std::move(rows));
     versions_.clear();
     nextVersionTransactionId_ = 1;
-    for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
-        versions_.write(rowId, rows_[rowId], nextVersionTransactionId_++);
+    for (RowId rowId = 0; rowId < rowStore_->size(); ++rowId) {
+        versions_.write(rowId, *rowStore_->get(rowId), nextVersionTransactionId_++);
     }
     rebuildIndexes();
 }
@@ -214,11 +225,15 @@ void Table::validateRow(const Row &row) const {
 }
 
 void Table::addRowToIndexes(RowId rowId) {
+    const auto *row = rowStore_->get(rowId);
+    if (row == nullptr) {
+        return;
+    }
     for (auto &[name, index] : indexes_) {
-        index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
+        index.insert((*row)[indexColumns_.at(name)], rowId);
     }
     for (auto &[name, index] : orderedIndexes_) {
-        index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
+        index.insert((*row)[indexColumns_.at(name)], rowId);
     }
 }
 
@@ -229,7 +244,7 @@ void Table::rebuildIndexes() {
     for (auto &[_, index] : orderedIndexes_) {
         index.clear();
     }
-    for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
+    for (RowId rowId = 0; rowId < rowStore_->size(); ++rowId) {
         addRowToIndexes(rowId);
     }
 }

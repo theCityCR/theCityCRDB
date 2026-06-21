@@ -5,6 +5,7 @@
 
 #include <map>
 #include <optional>
+#include <span>
 #include <vector>
 
 namespace theCityCRDB {
@@ -21,6 +22,9 @@ class MVCCRowStore {
     void erase(RowId rowId, TransactionId transactionId);
     void clear();
     [[nodiscard]] std::optional<Row> read(RowId rowId, TransactionId readerId) const;
+    [[nodiscard]] std::vector<Row> visibleRows(TransactionId readerId) const;
+    [[nodiscard]] std::vector<Row> visibleRowsById(std::span<const RowId> rowIds,
+                                                   TransactionId readerId) const;
     [[nodiscard]] std::size_t versionCount(RowId rowId) const;
 
   private:

@@ -9,9 +9,10 @@ The first implementation exposes B+ tree behavior through an ordered index API:
 - greater-than range lookup
 - ordered row id storage per key
 
-Internally it uses an ordered map-backed implementation behind the B+ tree API. This gives the
-storage engine stable ordered-index behavior today while preserving the public boundary for a
-future page-backed node implementation.
+Internally it uses ordered entries for lookup correctness while also maintaining explicit B+ tree
+layout metadata: leaf page ids, linked leaves, root children, and separator keys. This gives the
+storage engine stable ordered-index behavior today while preserving the public boundary for
+page-backed split/merge node operations.
 
 ## Write-Ahead Log
 
@@ -47,14 +48,15 @@ using table statistics.
 ## MVCC
 
 The MVCC layer introduces transaction identifiers, transaction state management, and row-version
-chains. `Table` now records row versions during inserts, updates, deletes, and row replacement so
-real storage mutations maintain version metadata. User-facing transactions still use snapshot
-rollback semantics while the version-chain data is available for future visibility rules.
+chains. `Table` records row versions during inserts, updates, deletes, and row replacement, and it
+now exposes transaction-aware snapshot APIs. User-facing transactions still use snapshot rollback
+semantics while future executor isolation work can route transactional reads through those APIs.
 
 ## Buffer Pool
 
-The buffer pool is an LRU cache for fixed-size page payloads. It is independent from table storage
-for now, which lets persistence and future page-oriented B+ tree storage adopt it incrementally.
+The buffer pool is an LRU cache for fixed-size page payloads. `Table` now delegates physical row
+storage through a `RowStore` interface. The current implementation uses `VectorRowStore`; a future
+`PageRowStore` can adopt `BufferPool` behind the same table API.
 
 ## Query Planner
 
