@@ -18,6 +18,8 @@ void MVCCRowStore::erase(RowId rowId, TransactionId transactionId) {
     }
 }
 
+void MVCCRowStore::clear() { versions_.clear(); }
+
 std::optional<Row> MVCCRowStore::read(RowId rowId, TransactionId readerId) const {
     auto it = versions_.find(rowId);
     if (it == versions_.end()) {

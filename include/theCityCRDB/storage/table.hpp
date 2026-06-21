@@ -5,6 +5,7 @@
 #include "theCityCRDB/indexing/btree_index.hpp"
 #include "theCityCRDB/indexing/hash_index.hpp"
 #include "theCityCRDB/storage/row.hpp"
+#include "theCityCRDB/transaction/mvcc_row_store.hpp"
 
 #include <map>
 #include <optional>
@@ -35,6 +36,7 @@ class Table {
     [[nodiscard]] bool hasOrderedIndex(std::string_view column) const;
     [[nodiscard]] std::vector<std::string> listIndexes() const;
     [[nodiscard]] std::vector<std::pair<std::string, std::string>> indexDefinitions() const;
+    [[nodiscard]] std::size_t versionCount(RowId rowId) const;
 
     RowId insert(Row row);
     bool erase(RowId rowId);
@@ -53,6 +55,8 @@ class Table {
     std::map<std::string, std::size_t> indexColumns_;
     std::map<std::string, HashIndex> indexes_;
     std::map<std::string, BTreeIndex> orderedIndexes_;
+    MVCCRowStore versions_;
+    TransactionId nextVersionTransactionId_{1};
     mutable std::shared_mutex mutex_;
 };
 

@@ -73,6 +73,15 @@ TEST(ParserTests, ParsesJoinAndPreparedStatements) {
     EXPECT_EQ(select.join->leftColumn, "dept_id");
     EXPECT_EQ(select.join->rightColumn, "id");
 
+    auto qualified =
+        parser.parse("SELECT Employees.name, Departments.dept FROM Employees JOIN Departments ON "
+                     "Employees.dept_id = Departments.id;");
+    ASSERT_TRUE(std::holds_alternative<Select>(qualified));
+    const auto &qualifiedSelect = std::get<Select>(qualified);
+    ASSERT_EQ(qualifiedSelect.columns.size(), 2U);
+    EXPECT_EQ(qualifiedSelect.columns[0], "Employees.name");
+    EXPECT_EQ(qualifiedSelect.join->leftColumn, "Employees.dept_id");
+
     EXPECT_TRUE(std::holds_alternative<PrepareStatement>(
         parser.parse("PREPARE by_id AS \"SELECT name FROM Employees WHERE id = ?;\";")));
 

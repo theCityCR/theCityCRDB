@@ -39,6 +39,19 @@ TEST(StorageTests, MaintainsIndexesAcrossInsertUpdateAndDelete) {
     EXPECT_TRUE(table.findIndexed("id", Value{3}).empty());
 }
 
+TEST(StorageTests, TracksRowVersionsAcrossTableMutations) {
+    Table table{"Employees", {{"id", ColumnType::Int}, {"name", ColumnType::String}}};
+
+    const auto rowId = table.insert({Value{1}, Value{std::string{"Alice"}}});
+    EXPECT_EQ(table.versionCount(rowId), 1U);
+
+    ASSERT_TRUE(table.update(rowId, 1, Value{std::string{"Alicia"}}));
+    EXPECT_EQ(table.versionCount(rowId), 2U);
+
+    ASSERT_TRUE(table.erase(rowId));
+    EXPECT_EQ(table.versionCount(rowId), 2U);
+}
+
 TEST(StorageTests, SupportsConcurrentInserts) {
     Table table{"Events", {{"id", ColumnType::Int}}};
     constexpr int threadCount = 4;

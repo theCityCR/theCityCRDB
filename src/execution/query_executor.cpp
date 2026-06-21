@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
+#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -50,15 +52,113 @@ std::string sqlLiteral(const Value &value) {
     return {};
 }
 
+std::string columnTypeLiteral(ColumnType type) { return toString(type); }
+
+std::string predicateLiteral(const Predicate &predicate) {
+    std::string op;
+    switch (predicate.op) {
+    case ComparisonOperator::Equal:
+        op = "=";
+        break;
+    case ComparisonOperator::Greater:
+        op = ">";
+        break;
+    case ComparisonOperator::Less:
+        op = "<";
+        break;
+    }
+    return predicate.column + " " + op + " " + sqlLiteral(predicate.value);
+}
+
+std::string createTableSql(const CreateTable &command) {
+    std::ostringstream sql;
+    sql << "CREATE TABLE " << command.name << " (";
+    for (std::size_t i = 0; i < command.columns.size(); ++i) {
+        if (i != 0) {
+            sql << ", ";
+        }
+        sql << command.columns[i].name << " " << columnTypeLiteral(command.columns[i].type);
+    }
+    sql << ");";
+    return sql.str();
+}
+
+std::string insertSql(const Insert &command) {
+    std::ostringstream sql;
+    sql << "INSERT INTO " << command.table << " VALUES (";
+    for (std::size_t i = 0; i < command.values.size(); ++i) {
+        if (i != 0) {
+            sql << ", ";
+        }
+        sql << sqlLiteral(command.values[i]);
+    }
+    sql << ");";
+    return sql.str();
+}
+
+std::string updateSql(const Update &command) {
+    std::ostringstream sql;
+    sql << "UPDATE " << command.table << " SET " << command.column << " = "
+        << sqlLiteral(command.value);
+    if (command.where) {
+        sql << " WHERE " << predicateLiteral(*command.where);
+    }
+    sql << ";";
+    return sql.str();
+}
+
+std::string deleteSql(const Delete &command) {
+    std::ostringstream sql;
+    sql << "DELETE FROM " << command.table;
+    if (command.where) {
+        sql << " WHERE " << predicateLiteral(*command.where);
+    }
+    sql << ";";
+    return sql.str();
+}
+
+std::string createIndexSql(const CreateIndex &command) {
+    return "CREATE INDEX " + command.name + " ON " + command.table + "(" + command.column + ");";
+}
+
+std::optional<std::size_t> resolveResultColumn(std::span<const std::string> columns,
+                                               std::string_view requested) {
+    for (std::size_t i = 0; i < columns.size(); ++i) {
+        if (columns[i] == requested) {
+            return i;
+        }
+    }
+
+    std::optional<std::size_t> match;
+    const auto suffix = "." + std::string{requested};
+    for (std::size_t i = 0; i < columns.size(); ++i) {
+        if (columns[i].size() < suffix.size()) {
+            continue;
+        }
+        if (columns[i].compare(columns[i].size() - suffix.size(), suffix.size(), suffix) == 0) {
+            if (match) {
+                throw std::runtime_error("ambiguous column reference");
+            }
+            match = i;
+        }
+    }
+    return match;
+}
+
+std::optional<std::size_t> resolveTableColumn(const Table &table, std::string_view tableName,
+                                              std::string_view requested) {
+    const auto qualifier = std::string{tableName} + ".";
+    if (requested.starts_with(qualifier)) {
+        requested.remove_prefix(qualifier.size());
+    }
+    return table.columnIndex(requested);
+}
+
 } // namespace
 
 QueryExecutor::QueryExecutor(std::filesystem::path storageRoot)
     : storageManager_(storageRoot), wal_(storageRoot / "theCityCRDB.wal") {
-    try {
-        database_ = storageManager_.loadFirstDatabase();
-    } catch (const std::exception &) {
-        database_.reset();
-    }
+    recoverFromStorage();
 }
 
 QueryResult QueryExecutor::execute(const Query &query) {
@@ -125,7 +225,7 @@ QueryResult QueryExecutor::executeUnlocked(const Query &query) {
 std::shared_ptr<Database> QueryExecutor::currentDatabase() const noexcept { return database_; }
 
 QueryResult QueryExecutor::executeCreateDatabase(const CreateDatabase &command) {
-    (void)wal_.append(WalOperation::CreateDatabase, command.name);
+    appendWal(WalOperation::CreateDatabase, command.name);
     database_ = std::make_shared<Database>(command.name);
     return messageResult(true, "created database " + command.name);
 }
@@ -136,7 +236,7 @@ QueryResult QueryExecutor::executeCreateTable(const CreateTable &command) {
     }
     const bool created = database_->createTable(command.name, command.columns);
     if (created) {
-        (void)wal_.append(WalOperation::CreateTable, command.name);
+        appendWal(WalOperation::CreateTable, createTableSql(command));
     }
     return messageResult(created,
                          created ? "created table " + command.name : "table already exists");
@@ -148,7 +248,7 @@ QueryResult QueryExecutor::executeDropTable(const DropTable &command) {
     }
     const bool dropped = database_->dropTable(command.name);
     if (dropped) {
-        (void)wal_.append(WalOperation::DropTable, command.name);
+        appendWal(WalOperation::DropTable, "DROP TABLE " + command.name + ";");
     }
     return messageResult(dropped, dropped ? "dropped table " + command.name : "unknown table");
 }
@@ -159,7 +259,8 @@ QueryResult QueryExecutor::executeRenameTable(const RenameTable &command) {
     }
     const bool renamed = database_->renameTable(command.oldName, command.newName);
     if (renamed) {
-        (void)wal_.append(WalOperation::RenameTable, command.oldName + "->" + command.newName);
+        appendWal(WalOperation::RenameTable,
+                  "RENAME TABLE " + command.oldName + " TO " + command.newName + ";");
     }
     return messageResult(renamed, renamed ? "renamed table " + command.oldName : "rename failed");
 }
@@ -180,7 +281,7 @@ QueryResult QueryExecutor::executeListTables() {
 QueryResult QueryExecutor::executeInsert(const Insert &command) {
     auto table = requireTable(command.table);
     table->insert(command.values);
-    (void)wal_.append(WalOperation::Insert, command.table);
+    appendWal(WalOperation::Insert, insertSql(command));
     return messageResult(true, "inserted 1 row");
 }
 
@@ -237,9 +338,11 @@ QueryResult QueryExecutor::executeUpdate(const Update &command) {
             continue;
         }
         if (table->update(rowId, *target, command.value)) {
-            (void)wal_.append(WalOperation::Update, command.table + "." + command.column);
             ++count;
         }
+    }
+    if (count != 0) {
+        appendWal(WalOperation::Update, updateSql(command));
     }
     return messageResult(true, "updated " + std::to_string(count) + " row(s)");
 }
@@ -254,9 +357,11 @@ QueryResult QueryExecutor::executeDelete(const Delete &command) {
             continue;
         }
         if (table->erase(actual)) {
-            (void)wal_.append(WalOperation::Delete, command.table);
             ++count;
         }
+    }
+    if (count != 0) {
+        appendWal(WalOperation::Delete, deleteSql(command));
     }
     return messageResult(true, "deleted " + std::to_string(count) + " row(s)");
 }
@@ -265,7 +370,7 @@ QueryResult QueryExecutor::executeCreateIndex(const CreateIndex &command) {
     auto table = requireTable(command.table);
     const bool created = table->createIndex(command.name, command.column);
     if (created) {
-        (void)wal_.append(WalOperation::CreateIndex, command.table + "." + command.column);
+        appendWal(WalOperation::CreateIndex, createIndexSql(command));
     }
     return messageResult(created,
                          created ? "created index " + command.name : "index creation failed");
@@ -275,7 +380,7 @@ QueryResult QueryExecutor::executeSaveDatabase() {
     if (!database_) {
         return messageResult(false, "no active database");
     }
-    (void)wal_.append(WalOperation::SaveDatabase, database_->name());
+    appendWal(WalOperation::SaveDatabase, database_->name());
     storageManager_.saveDatabase(*database_);
     return messageResult(true, "saved database " + database_->name());
 }
@@ -391,22 +496,40 @@ std::vector<Row> QueryExecutor::collectRows(const Select &command, const Table &
 QueryResult QueryExecutor::executeJoinSelect(const Select &command) {
     auto leftTable = requireTable(command.table);
     auto rightTable = requireTable(command.join->table);
-    const auto leftJoinColumn = leftTable->columnIndex(command.join->leftColumn);
-    const auto rightJoinColumn = rightTable->columnIndex(command.join->rightColumn);
+    const auto leftJoinColumn =
+        resolveTableColumn(*leftTable, command.table, command.join->leftColumn);
+    const auto rightJoinColumn =
+        resolveTableColumn(*rightTable, command.join->table, command.join->rightColumn);
     if (!leftJoinColumn || !rightJoinColumn) {
         throw std::runtime_error("unknown join column");
     }
-    if (!(command.columns.size() == 1 && command.columns.front() == "*")) {
-        throw std::runtime_error("joined SELECT currently supports only SELECT *");
-    }
 
-    QueryResult result;
-    result.message = "selected rows";
+    std::vector<std::string> joinedColumns;
     for (const auto &column : leftTable->schema()) {
-        result.columns.push_back(command.table + "." + column.name);
+        joinedColumns.push_back(command.table + "." + column.name);
     }
     for (const auto &column : rightTable->schema()) {
-        result.columns.push_back(command.join->table + "." + column.name);
+        joinedColumns.push_back(command.join->table + "." + column.name);
+    }
+
+    std::vector<std::size_t> projection;
+    std::vector<std::string> projectedColumns;
+    if (command.columns.size() == 1 && command.columns.front() == "*") {
+        for (std::size_t i = 0; i < joinedColumns.size(); ++i) {
+            projection.push_back(i);
+        }
+        projectedColumns = joinedColumns;
+    } else {
+        projection.reserve(command.columns.size());
+        projectedColumns.reserve(command.columns.size());
+        for (const auto &column : command.columns) {
+            auto index = resolveResultColumn(joinedColumns, column);
+            if (!index) {
+                throw std::runtime_error("unknown selected column");
+            }
+            projection.push_back(*index);
+            projectedColumns.push_back(joinedColumns[*index]);
+        }
     }
 
     const auto leftRows = leftTable->rowsSnapshot();
@@ -416,6 +539,7 @@ QueryResult QueryExecutor::executeJoinSelect(const Select &command) {
         rightRowsByKey[row[*rightJoinColumn]].push_back(row);
     }
 
+    std::vector<Row> joinedRows;
     for (const auto &leftRow : leftRows) {
         auto matchingRightRows = rightRowsByKey.find(leftRow[*leftJoinColumn]);
         if (matchingRightRows == rightRowsByKey.end()) {
@@ -426,10 +550,42 @@ QueryResult QueryExecutor::executeJoinSelect(const Select &command) {
             joined.reserve(leftRow.size() + rightRow.size());
             joined.insert(joined.end(), leftRow.begin(), leftRow.end());
             joined.insert(joined.end(), rightRow.begin(), rightRow.end());
-            result.rows.push_back(std::move(joined));
-            if (command.limit && result.rows.size() >= *command.limit) {
-                return result;
+            if (command.where) {
+                const auto whereColumn = resolveResultColumn(joinedColumns, command.where->column);
+                if (!whereColumn) {
+                    throw std::runtime_error("unknown predicate column");
+                }
+                if (!compare(joined[*whereColumn], command.where->op, command.where->value)) {
+                    continue;
+                }
             }
+            joinedRows.push_back(std::move(joined));
+        }
+    }
+
+    if (command.orderBy) {
+        const auto orderColumn = resolveResultColumn(joinedColumns, command.orderBy->column);
+        if (!orderColumn) {
+            throw std::runtime_error("unknown ORDER BY column");
+        }
+        std::ranges::sort(joinedRows, [&](const Row &left, const Row &right) {
+            if (command.orderBy->ascending) {
+                return left[*orderColumn] < right[*orderColumn];
+            }
+            return right[*orderColumn] < left[*orderColumn];
+        });
+    }
+
+    QueryResult result{true, "selected rows", std::move(projectedColumns), {}};
+    for (const auto &row : joinedRows) {
+        Row projected;
+        projected.reserve(projection.size());
+        for (const auto index : projection) {
+            projected.push_back(row[index]);
+        }
+        result.rows.push_back(std::move(projected));
+        if (command.limit && result.rows.size() >= *command.limit) {
+            break;
         }
     }
     return result;
@@ -481,6 +637,65 @@ std::string QueryExecutor::bindPreparedSql(const ExecutePrepared &command) const
         throw std::runtime_error("too many prepared statement parameters");
     }
     return bound.str();
+}
+
+void QueryExecutor::recoverFromStorage() {
+    bool loadedSnapshot = false;
+    try {
+        database_ = storageManager_.loadFirstDatabase();
+        loadedSnapshot = true;
+    } catch (const std::exception &) {
+        database_.reset();
+    }
+    recoverFromWal(loadedSnapshot);
+}
+
+void QueryExecutor::recoverFromWal(bool loadedSnapshot) {
+    std::vector<WalRecord> records;
+    try {
+        records = wal_.readAll();
+    } catch (const std::exception &) {
+        return;
+    }
+    if (records.empty()) {
+        return;
+    }
+
+    std::size_t start = 0;
+    if (loadedSnapshot) {
+        for (std::size_t i = 0; i < records.size(); ++i) {
+            if (records[i].operation == WalOperation::SaveDatabase) {
+                start = i + 1;
+            }
+        }
+    }
+
+    replayingWal_ = true;
+    try {
+        Parser parser;
+        for (std::size_t i = start; i < records.size(); ++i) {
+            const auto &record = records[i];
+            if (record.operation == WalOperation::SaveDatabase) {
+                continue;
+            }
+            if (record.operation == WalOperation::CreateDatabase &&
+                record.payload.find(' ') == std::string::npos) {
+                database_ = std::make_shared<Database>(record.payload);
+                continue;
+            }
+            (void)executeUnlocked(parser.parse(record.payload));
+        }
+    } catch (const std::exception &) {
+        database_.reset();
+    }
+    replayingWal_ = false;
+}
+
+void QueryExecutor::appendWal(WalOperation operation, std::string payload) {
+    if (replayingWal_) {
+        return;
+    }
+    (void)wal_.append(operation, std::move(payload));
 }
 
 } // namespace theCityCRDB

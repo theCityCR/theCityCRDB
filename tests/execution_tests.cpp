@@ -198,6 +198,41 @@ TEST(ExecutionTests, ExecutesHashJoin) {
     std::filesystem::remove_all(root);
 }
 
+TEST(ExecutionTests, ExecutesProjectedQualifiedJoinWithFilteringAndOrdering) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_projected_join_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+    QueryExecutor executor{root};
+
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING, dept_id INT);"))
+            .success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("CREATE TABLE Departments (id INT, dept STRING);")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\", 10);")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Employees VALUES (2, \"Bob\", 20);")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Departments VALUES (10, \"Engineering\");"))
+            .success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Departments VALUES (20, \"Sales\");")).success);
+
+    auto result = executor.execute(
+        parser.parse("SELECT Employees.name, Departments.dept FROM Employees JOIN Departments ON "
+                     "Employees.dept_id = Departments.id WHERE Departments.dept > \"A\" ORDER BY "
+                     "Employees.name DESC LIMIT 1;"));
+    ASSERT_EQ(result.columns, (std::vector<std::string>{"Employees.name", "Departments.dept"}));
+    ASSERT_EQ(result.rows.size(), 1U);
+    EXPECT_EQ(result.rows.front()[0], Value{std::string{"Bob"}});
+    EXPECT_EQ(result.rows.front()[1], Value{std::string{"Sales"}});
+
+    std::filesystem::remove_all(root);
+}
+
 TEST(ExecutionTests, AutomaticallyLoadsSavedDatabaseOnStartup) {
     const auto root = std::filesystem::temp_directory_path() /
                       ("theCityCRDB_recovery_test_" +
@@ -216,6 +251,53 @@ TEST(ExecutionTests, AutomaticallyLoadsSavedDatabaseOnStartup) {
     auto result = recovered.execute(parser.parse("SELECT * FROM Employees;"));
     ASSERT_EQ(result.rows.size(), 1U);
     EXPECT_EQ(result.rows.front().front(), Value{1});
+
+    std::filesystem::remove_all(root);
+}
+
+TEST(ExecutionTests, ReplaysWalChangesAfterLatestSavedSnapshot) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_wal_recovery_after_save_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+
+    {
+        QueryExecutor executor{root};
+        ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT);")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("INSERT INTO Employees VALUES (1);")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("SAVE DATABASE;")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("INSERT INTO Employees VALUES (2);")).success);
+    }
+
+    QueryExecutor recovered{root};
+    auto result = recovered.execute(parser.parse("SELECT * FROM Employees ORDER BY id ASC;"));
+    ASSERT_EQ(result.rows.size(), 2U);
+    EXPECT_EQ(result.rows[0].front(), Value{1});
+    EXPECT_EQ(result.rows[1].front(), Value{2});
+
+    std::filesystem::remove_all(root);
+}
+
+TEST(ExecutionTests, ReplaysWalWhenNoSnapshotExists) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_wal_only_recovery_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+
+    {
+        QueryExecutor executor{root};
+        ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING);"))
+                        .success);
+        ASSERT_TRUE(
+            executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\");")).success);
+    }
+
+    QueryExecutor recovered{root};
+    auto result = recovered.execute(parser.parse("SELECT name FROM Employees WHERE id = 1;"));
+    ASSERT_EQ(result.rows.size(), 1U);
+    EXPECT_EQ(result.rows.front().front(), Value{std::string{"Alice"}});
 
     std::filesystem::remove_all(root);
 }

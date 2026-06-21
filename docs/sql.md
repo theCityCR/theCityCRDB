@@ -15,6 +15,11 @@ SELECT * FROM Employees;
 SELECT name FROM Employees WHERE salary > 100000.0 LIMIT 10;
 SELECT name FROM Employees WHERE salary > 100000.0 ORDER BY salary DESC LIMIT 10;
 SELECT * FROM Employees JOIN Departments ON dept_id = id LIMIT 10;
+SELECT Employees.name, Departments.dept
+FROM Employees JOIN Departments ON Employees.dept_id = Departments.id
+WHERE Departments.dept > "A"
+ORDER BY Employees.name DESC
+LIMIT 5;
 UPDATE Employees SET salary = 150000.0 WHERE id = 1;
 DELETE FROM Employees WHERE id = 5;
 CREATE INDEX idx_salary ON Employees(salary);
@@ -32,16 +37,18 @@ EXIT;
 `CREATE INDEX` builds a hash index maintained by table writes. Equality predicates in `SELECT`
 use the index when the filtered column is indexed.
 
-`JOIN` currently supports single-table equi-joins with `SELECT *`. Joined result columns are
-qualified as `LeftTable.column` and `RightTable.column`.
+`JOIN` supports a single equi-join. Joined result columns are qualified as `LeftTable.column` and
+`RightTable.column`. Projection, `WHERE`, `ORDER BY`, and `LIMIT` can reference qualified columns;
+unqualified references are allowed when the column name is not ambiguous.
 
 Prepared statements store a SQL string containing `?` placeholders. `EXECUTE name VALUES (...)`
 binds values positionally, reparses the bound statement, and executes it through the normal engine.
 
 `SAVE DATABASE` and `LOAD DATABASE` use a versioned binary format under the executor's storage
 root. `LOAD DATABASE` without a name reloads the active database when one exists, otherwise it
-loads the first saved database file. Query executors also attempt to load the first saved database
-at startup, giving basic automatic recovery for the last explicitly saved state.
+loads the first saved database file. Query executors also recover automatically on startup by
+loading the latest saved snapshot and replaying WAL records after that checkpoint. If no snapshot
+exists, startup recovery replays the WAL from the beginning.
 
 Transactions use snapshot rollback semantics. `BEGIN` captures the active database state,
 `COMMIT` releases the snapshot, and `ROLLBACK` restores it.
@@ -58,4 +65,3 @@ Transactions use snapshot rollback semantics. `BEGIN` captures the active databa
 - Better diagnostics with source positions.
 - Multiple-row `INSERT`.
 - `AND`/`OR` predicates.
-- Projected join columns beyond `SELECT *`.

@@ -19,6 +19,7 @@ class MVCCRowStore {
   public:
     void write(RowId rowId, Row row, TransactionId transactionId);
     void erase(RowId rowId, TransactionId transactionId);
+    void clear();
     [[nodiscard]] std::optional<Row> read(RowId rowId, TransactionId readerId) const;
     [[nodiscard]] std::size_t versionCount(RowId rowId) const;
 

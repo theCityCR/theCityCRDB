@@ -11,7 +11,7 @@ bool isIdentifierStart(char ch) {
 }
 
 bool isIdentifierPart(char ch) {
-    return std::isalnum(static_cast<unsigned char>(ch)) != 0 || ch == '_';
+    return std::isalnum(static_cast<unsigned char>(ch)) != 0 || ch == '_' || ch == '.';
 }
 
 } // namespace
@@ -47,14 +47,22 @@ std::vector<Token> Tokenizer::tokenize(std::string_view sql) const {
         }
 
         if (ch == '"') {
-            const std::size_t start = ++pos;
+            ++pos;
+            std::string value;
             while (pos < sql.size() && sql[pos] != '"') {
+                if (sql[pos] == '\\') {
+                    ++pos;
+                    if (pos >= sql.size()) {
+                        throw std::runtime_error("unterminated string literal");
+                    }
+                }
+                value.push_back(sql[pos]);
                 ++pos;
             }
             if (pos >= sql.size()) {
                 throw std::runtime_error("unterminated string literal");
             }
-            tokens.push_back({TokenType::String, std::string{sql.substr(start, pos - start)}});
+            tokens.push_back({TokenType::String, std::move(value)});
             ++pos;
             continue;
         }

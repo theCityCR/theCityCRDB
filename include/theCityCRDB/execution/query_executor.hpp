@@ -54,6 +54,9 @@ class QueryExecutor {
     [[nodiscard]] std::shared_ptr<Table> requireTable(std::string_view tableName) const;
     [[nodiscard]] QueryResult executeUnlocked(const Query &query);
     [[nodiscard]] std::string bindPreparedSql(const ExecutePrepared &command) const;
+    void recoverFromStorage();
+    void recoverFromWal(bool loadedSnapshot);
+    void appendWal(WalOperation operation, std::string payload);
 
     std::shared_ptr<Database> database_;
     std::shared_ptr<Database> transactionSnapshot_;
@@ -63,6 +66,7 @@ class QueryExecutor {
     TransactionManager transactionManager_;
     std::optional<TransactionId> activeTransaction_;
     std::unordered_map<std::string, std::string> preparedStatements_;
+    bool replayingWal_{false};
     mutable std::shared_mutex mutex_;
 };
 

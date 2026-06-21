@@ -9,8 +9,9 @@ The first implementation exposes B+ tree behavior through an ordered index API:
 - greater-than range lookup
 - ordered row id storage per key
 
-Internally it starts with `std::map` so callers and tests can stabilize before replacing the
-implementation with page-backed B+ tree nodes and split/merge logic.
+Internally it uses an ordered map-backed implementation behind the B+ tree API. This gives the
+storage engine stable ordered-index behavior today while preserving the public boundary for a
+future page-backed node implementation.
 
 ## Write-Ahead Log
 
@@ -23,10 +24,10 @@ The WAL records logical operations before mutating in-memory state:
 - drop/rename table
 - save
 
-The first implementation persists append-only binary log records with a versioned header per
-record. Replay is exposed as a low-level API. The executor currently performs automatic startup
-recovery by loading the first saved database snapshot from disk. Full crash recovery will later map
-WAL records back through the SQL parser/executor or a typed recovery executor.
+The WAL persists append-only binary log records with a versioned header per record. Mutating
+executor operations write replayable payloads. Startup recovery loads the latest saved snapshot,
+then replays WAL records after the last save checkpoint. If no saved snapshot exists, recovery
+replays the WAL from the beginning.
 
 ## Prepared Statements
 
@@ -37,16 +38,17 @@ typed parameterized AST nodes.
 
 ## Joins
 
-The first join implementation supports a single equi-join with `SELECT *`, optional `LIMIT`, and
-qualified output column names. It builds an in-memory lookup over the right side and scans the left
-side. Later work should add projected join columns, predicate pushdown, and planner-selected join
-algorithms such as nested-loop versus hash join.
+Joins support a single equi-join with projected or `SELECT *` output, qualified output column names,
+joined `WHERE`, `ORDER BY`, and `LIMIT`. Execution builds an in-memory lookup over the right side
+and scans the left side. Later planner work can choose between nested-loop and hash join variants
+using table statistics.
 
 ## MVCC
 
-The first MVCC layer introduces transaction identifiers and transaction state management. Storage
-still uses snapshot rollback transactions today. A later storage-engine pass should move `Table`
-from a single row vector to version chains with begin/end transaction ids.
+The MVCC layer introduces transaction identifiers, transaction state management, and row-version
+chains. `Table` now records row versions during inserts, updates, deletes, and row replacement so
+real storage mutations maintain version metadata. User-facing transactions still use snapshot
+rollback semantics while the version-chain data is available for future visibility rules.
 
 ## Buffer Pool
 

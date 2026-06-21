@@ -118,11 +118,17 @@ std::vector<std::pair<std::string, std::string>> Table::indexDefinitions() const
     return definitions;
 }
 
+std::size_t Table::versionCount(RowId rowId) const {
+    std::shared_lock lock{mutex_};
+    return versions_.versionCount(rowId);
+}
+
 RowId Table::insert(Row row) {
     validateRow(row);
     std::unique_lock lock{mutex_};
     rows_.push_back(std::move(row));
     const RowId rowId = rows_.size() - 1;
+    versions_.write(rowId, rows_[rowId], nextVersionTransactionId_++);
     addRowToIndexes(rowId);
     return rowId;
 }
@@ -132,6 +138,7 @@ bool Table::erase(RowId rowId) {
     if (rowId >= rows_.size()) {
         return false;
     }
+    versions_.erase(rowId, nextVersionTransactionId_++);
     rows_.erase(rows_.begin() + static_cast<std::ptrdiff_t>(rowId));
     rebuildIndexes();
     return true;
@@ -146,6 +153,7 @@ bool Table::update(RowId rowId, std::size_t index, Value value) {
         throw std::invalid_argument("updated value does not match column type");
     }
     rows_[rowId][index] = std::move(value);
+    versions_.write(rowId, rows_[rowId], nextVersionTransactionId_++);
     rebuildIndexes();
     return true;
 }
@@ -176,6 +184,11 @@ void Table::replaceRows(std::vector<Row> rows) {
     }
     std::unique_lock lock{mutex_};
     rows_ = std::move(rows);
+    versions_.clear();
+    nextVersionTransactionId_ = 1;
+    for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
+        versions_.write(rowId, rows_[rowId], nextVersionTransactionId_++);
+    }
     rebuildIndexes();
 }
 
