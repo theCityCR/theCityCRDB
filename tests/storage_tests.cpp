@@ -109,7 +109,7 @@ TEST(StorageTests, SupportsConcurrentInserts) {
     constexpr int threadCount = 4;
     constexpr int insertsPerThread = 250;
 
-    std::vector<std::jthread> threads;
+    std::vector<std::thread> threads;
     for (int thread = 0; thread < threadCount; ++thread) {
         threads.emplace_back([thread, &table] {
             for (int i = 0; i < insertsPerThread; ++i) {
@@ -118,7 +118,9 @@ TEST(StorageTests, SupportsConcurrentInserts) {
         });
     }
 
-    threads.clear();
+    for (auto &thread : threads) {
+        thread.join();
+    }
     EXPECT_EQ(table.rowCount(), static_cast<std::size_t>(threadCount * insertsPerThread));
 }
 

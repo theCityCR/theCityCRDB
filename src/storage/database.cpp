@@ -1,5 +1,7 @@
 #include "theCityCRDB/storage/database.hpp"
 
+#include <mutex>
+#include <shared_mutex>
 #include <stdexcept>
 
 namespace theCityCRDB {
