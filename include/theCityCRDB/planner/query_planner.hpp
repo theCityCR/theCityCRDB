@@ -18,6 +18,8 @@ enum class AccessPath : std::uint8_t {
 struct QueryPlan {
     AccessPath accessPath{AccessPath::FullScan};
     std::optional<Predicate> predicate;
+    std::size_t estimatedRows{};
+    double estimatedCost{};
     std::string explanation{"full table scan"};
 };
 

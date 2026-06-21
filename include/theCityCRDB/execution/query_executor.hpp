@@ -1,5 +1,6 @@
 #pragma once
 
+#include "theCityCRDB/concurrency/lock_manager.hpp"
 #include "theCityCRDB/execution/query_result.hpp"
 #include "theCityCRDB/parser/ast.hpp"
 #include "theCityCRDB/persistence/storage_manager.hpp"
@@ -11,7 +12,6 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
-#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -67,7 +67,7 @@ class QueryExecutor {
     std::optional<TransactionId> activeTransaction_;
     std::unordered_map<std::string, std::string> preparedStatements_;
     bool replayingWal_{false};
-    mutable std::shared_mutex mutex_;
+    LockManager lockManager_;
 };
 
 } // namespace theCityCRDB

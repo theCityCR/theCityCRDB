@@ -188,11 +188,11 @@ QueryResult QueryExecutor::execute(const Query &query) {
     const bool readOnly =
         std::holds_alternative<Select>(query) || std::holds_alternative<ListTables>(query);
     if (readOnly) {
-        std::shared_lock lock{mutex_};
+        const auto lock = lockManager_.acquireRead();
         return executeUnlocked(query);
     }
 
-    std::unique_lock lock{mutex_};
+    const auto lock = lockManager_.acquireWrite();
     return executeUnlocked(query);
 }
 
@@ -654,7 +654,7 @@ std::shared_ptr<Table> QueryExecutor::requireTable(std::string_view tableName) c
 std::string QueryExecutor::bindPreparedSql(const ExecutePrepared &command) const {
     std::string sql;
     {
-        std::shared_lock lock{mutex_};
+        const auto lock = lockManager_.acquireRead();
         auto prepared = preparedStatements_.find(command.name);
         if (prepared == preparedStatements_.end()) {
             throw std::runtime_error("unknown prepared statement");

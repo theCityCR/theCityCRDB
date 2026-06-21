@@ -12,6 +12,13 @@ Aim for at least 85% line coverage on the core library. For code that touches pe
 transactions, indexing, recovery, or concurrency, prefer branch-oriented tests over only increasing
 line coverage.
 
+`scripts/run-coverage.sh` enforces the 85% default threshold after running the coverage-instrumented
+test binary. Override it for local experiments with:
+
+```sh
+THECITYCRDB_COVERAGE_MIN=90 scripts/run-coverage.sh
+```
+
 ## Regression Test Policy
 
 Add a regression test whenever:
