@@ -46,8 +46,15 @@ struct OrderBy {
     bool ascending{true};
 };
 
+struct JoinClause {
+    std::string table;
+    std::string leftColumn;
+    std::string rightColumn;
+};
+
 struct Select {
     std::string table;
+    std::optional<JoinClause> join;
     std::vector<std::string> columns;
     std::optional<Predicate> where;
     std::optional<OrderBy> orderBy;
@@ -79,10 +86,19 @@ struct LoadDatabase {
 struct BeginTransaction {};
 struct CommitTransaction {};
 struct RollbackTransaction {};
+struct PrepareStatement {
+    std::string name;
+    std::string sql;
+};
+struct ExecutePrepared {
+    std::string name;
+    std::vector<Value> parameters;
+};
 struct Exit {};
 
-using Query = std::variant<CreateDatabase, CreateTable, DropTable, RenameTable, ListTables, Insert,
-                           Select, Update, Delete, CreateIndex, SaveDatabase, LoadDatabase,
-                           BeginTransaction, CommitTransaction, RollbackTransaction, Exit>;
+using Query =
+    std::variant<CreateDatabase, CreateTable, DropTable, RenameTable, ListTables, Insert, Select,
+                 Update, Delete, CreateIndex, SaveDatabase, LoadDatabase, BeginTransaction,
+                 CommitTransaction, RollbackTransaction, PrepareStatement, ExecutePrepared, Exit>;
 
 } // namespace theCityCRDB

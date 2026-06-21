@@ -62,4 +62,23 @@ TEST(ParserTests, RejectsTrailingTokens) {
     EXPECT_THROW((void)parser.parse("SELECT * FROM Employees unexpected;"), std::runtime_error);
 }
 
+TEST(ParserTests, ParsesJoinAndPreparedStatements) {
+    Parser parser;
+
+    auto join = parser.parse("SELECT * FROM Employees JOIN Departments ON dept_id = id LIMIT 5;");
+    ASSERT_TRUE(std::holds_alternative<Select>(join));
+    const auto &select = std::get<Select>(join);
+    ASSERT_TRUE(select.join.has_value());
+    EXPECT_EQ(select.join->table, "Departments");
+    EXPECT_EQ(select.join->leftColumn, "dept_id");
+    EXPECT_EQ(select.join->rightColumn, "id");
+
+    EXPECT_TRUE(std::holds_alternative<PrepareStatement>(
+        parser.parse("PREPARE by_id AS \"SELECT name FROM Employees WHERE id = ?;\";")));
+
+    auto execute = parser.parse("EXECUTE by_id VALUES (1);");
+    ASSERT_TRUE(std::holds_alternative<ExecutePrepared>(execute));
+    EXPECT_EQ(std::get<ExecutePrepared>(execute).parameters.size(), 1U);
+}
+
 } // namespace theCityCRDB

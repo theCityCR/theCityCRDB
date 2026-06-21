@@ -29,6 +29,8 @@ class Parser {
     [[nodiscard]] Select parseSelect();
     [[nodiscard]] Update parseUpdate();
     [[nodiscard]] Delete parseDelete();
+    [[nodiscard]] PrepareStatement parsePrepare();
+    [[nodiscard]] ExecutePrepared parseExecutePrepared();
     [[nodiscard]] Predicate parsePredicate();
     [[nodiscard]] Value parseValue();
 

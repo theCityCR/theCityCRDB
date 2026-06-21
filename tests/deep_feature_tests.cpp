@@ -81,11 +81,16 @@ TEST(DeepFeatureTests, PlannerChoosesIndexAccessPaths) {
     ASSERT_TRUE(table.createIndex("idx_salary", "salary"));
 
     QueryPlanner planner;
-    Select equality{
-        "Employees", {"*"}, Predicate{"id", ComparisonOperator::Equal, Value{1}}, {}, {}};
+    Select equality{"Employees",
+                    std::nullopt,
+                    {"*"},
+                    Predicate{"id", ComparisonOperator::Equal, Value{1}},
+                    {},
+                    {}};
     EXPECT_EQ(planner.planSelect(equality, table).accessPath, AccessPath::HashIndexLookup);
 
     Select range{"Employees",
+                 std::nullopt,
                  {"*"},
                  Predicate{"salary", ComparisonOperator::Greater, Value{100000.0}},
                  {},

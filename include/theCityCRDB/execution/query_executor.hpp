@@ -11,7 +11,9 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <shared_mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace theCityCRDB {
@@ -39,14 +41,19 @@ class QueryExecutor {
     [[nodiscard]] QueryResult executeBegin();
     [[nodiscard]] QueryResult executeCommit();
     [[nodiscard]] QueryResult executeRollback();
+    [[nodiscard]] QueryResult executePrepare(const PrepareStatement &command);
+    [[nodiscard]] QueryResult executePrepared(const ExecutePrepared &command);
 
     [[nodiscard]] std::vector<std::size_t>
     resolveProjection(const Select &command, const Table &table,
                       std::vector<std::string> &columns) const;
     [[nodiscard]] std::vector<Row> collectRows(const Select &command, const Table &table) const;
+    [[nodiscard]] QueryResult executeJoinSelect(const Select &command);
     [[nodiscard]] bool matches(const Row &row, const Table &table,
                                const Predicate &predicate) const;
     [[nodiscard]] std::shared_ptr<Table> requireTable(std::string_view tableName) const;
+    [[nodiscard]] QueryResult executeUnlocked(const Query &query);
+    [[nodiscard]] std::string bindPreparedSql(const ExecutePrepared &command) const;
 
     std::shared_ptr<Database> database_;
     std::shared_ptr<Database> transactionSnapshot_;
@@ -55,6 +62,8 @@ class QueryExecutor {
     QueryPlanner planner_;
     TransactionManager transactionManager_;
     std::optional<TransactionId> activeTransaction_;
+    std::unordered_map<std::string, std::string> preparedStatements_;
+    mutable std::shared_mutex mutex_;
 };
 
 } // namespace theCityCRDB

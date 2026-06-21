@@ -96,6 +96,12 @@ Query Parser::parse(std::span<const Token> tokens) {
     if (match(TokenType::Identifier, "ROLLBACK")) {
         return finish(RollbackTransaction{});
     }
+    if (match(TokenType::Identifier, "PREPARE")) {
+        return finish(parsePrepare());
+    }
+    if (match(TokenType::Identifier, "EXECUTE")) {
+        return finish(parseExecutePrepared());
+    }
     if (match(TokenType::Identifier, "EXIT")) {
         return finish(Exit{});
     }
@@ -257,6 +263,25 @@ Select Parser::parseSelect() {
         throw std::runtime_error("expected table name");
     }
 
+    std::optional<JoinClause> join;
+    if (match(TokenType::Identifier, "JOIN")) {
+        const auto joinedTable = advance();
+        if (joinedTable.type != TokenType::Identifier) {
+            throw std::runtime_error("expected joined table name");
+        }
+        expect(TokenType::Identifier, "ON");
+        const auto leftColumn = advance();
+        if (leftColumn.type != TokenType::Identifier) {
+            throw std::runtime_error("expected left join column");
+        }
+        expect(TokenType::Equal);
+        const auto rightColumn = advance();
+        if (rightColumn.type != TokenType::Identifier) {
+            throw std::runtime_error("expected right join column");
+        }
+        join = JoinClause{joinedTable.lexeme, leftColumn.lexeme, rightColumn.lexeme};
+    }
+
     std::optional<Predicate> where;
     std::optional<OrderBy> orderBy;
     std::optional<std::size_t> limit;
@@ -284,7 +309,8 @@ Select Parser::parseSelect() {
         }
         limit = static_cast<std::size_t>(parseInt(count.lexeme));
     }
-    return {table.lexeme, std::move(columns), std::move(where), std::move(orderBy), limit};
+    return {table.lexeme,     std::move(join),    std::move(columns),
+            std::move(where), std::move(orderBy), limit};
 }
 
 Update Parser::parseUpdate() {
@@ -317,6 +343,36 @@ Delete Parser::parseDelete() {
         where = parsePredicate();
     }
     return {table.lexeme, std::move(where)};
+}
+
+PrepareStatement Parser::parsePrepare() {
+    const auto name = advance();
+    if (name.type != TokenType::Identifier) {
+        throw std::runtime_error("expected prepared statement name");
+    }
+    expect(TokenType::Identifier, "AS");
+    const auto sql = advance();
+    if (sql.type != TokenType::String) {
+        throw std::runtime_error("expected prepared SQL string");
+    }
+    return {name.lexeme, sql.lexeme};
+}
+
+ExecutePrepared Parser::parseExecutePrepared() {
+    const auto name = advance();
+    if (name.type != TokenType::Identifier) {
+        throw std::runtime_error("expected prepared statement name");
+    }
+
+    std::vector<Value> parameters;
+    if (match(TokenType::Identifier, "VALUES")) {
+        expect(TokenType::LeftParen);
+        do {
+            parameters.push_back(parseValue());
+        } while (match(TokenType::Comma));
+        expect(TokenType::RightParen);
+    }
+    return {name.lexeme, std::move(parameters)};
 }
 
 Predicate Parser::parsePredicate() {

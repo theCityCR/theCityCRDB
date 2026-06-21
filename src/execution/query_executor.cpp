@@ -1,6 +1,10 @@
 #include "theCityCRDB/execution/query_executor.hpp"
 
+#include "theCityCRDB/parser/parser.hpp"
+
 #include <algorithm>
+#include <map>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
@@ -26,12 +30,54 @@ QueryResult messageResult(bool success, std::string message) {
     return result;
 }
 
+std::string sqlLiteral(const Value &value) {
+    switch (value.type()) {
+    case ColumnType::Int:
+    case ColumnType::Double:
+        return value.toString();
+    case ColumnType::String: {
+        std::string escaped;
+        escaped.reserve(std::get<std::string>(value.data()).size());
+        for (const char character : std::get<std::string>(value.data())) {
+            if (character == '"' || character == '\\') {
+                escaped.push_back('\\');
+            }
+            escaped.push_back(character);
+        }
+        return "\"" + escaped + "\"";
+    }
+    }
+    return {};
+}
+
 } // namespace
 
 QueryExecutor::QueryExecutor(std::filesystem::path storageRoot)
-    : storageManager_(storageRoot), wal_(storageRoot / "theCityCRDB.wal") {}
+    : storageManager_(storageRoot), wal_(storageRoot / "theCityCRDB.wal") {
+    try {
+        database_ = storageManager_.loadFirstDatabase();
+    } catch (const std::exception &) {
+        database_.reset();
+    }
+}
 
 QueryResult QueryExecutor::execute(const Query &query) {
+    if (std::holds_alternative<ExecutePrepared>(query)) {
+        return executePrepared(std::get<ExecutePrepared>(query));
+    }
+
+    const bool readOnly =
+        std::holds_alternative<Select>(query) || std::holds_alternative<ListTables>(query);
+    if (readOnly) {
+        std::shared_lock lock{mutex_};
+        return executeUnlocked(query);
+    }
+
+    std::unique_lock lock{mutex_};
+    return executeUnlocked(query);
+}
+
+QueryResult QueryExecutor::executeUnlocked(const Query &query) {
     return std::visit(
         [this](const auto &command) -> QueryResult {
             using Command = std::decay_t<decltype(command)>;
@@ -65,6 +111,10 @@ QueryResult QueryExecutor::execute(const Query &query) {
                 return executeCommit();
             } else if constexpr (std::is_same_v<Command, RollbackTransaction>) {
                 return executeRollback();
+            } else if constexpr (std::is_same_v<Command, PrepareStatement>) {
+                return executePrepare(command);
+            } else if constexpr (std::is_same_v<Command, ExecutePrepared>) {
+                throw std::runtime_error("prepared execution must not be dispatched while locked");
             } else if constexpr (std::is_same_v<Command, Exit>) {
                 return messageResult(true, "exit");
             }
@@ -135,6 +185,10 @@ QueryResult QueryExecutor::executeInsert(const Insert &command) {
 }
 
 QueryResult QueryExecutor::executeSelect(const Select &command) {
+    if (command.join) {
+        return executeJoinSelect(command);
+    }
+
     auto table = requireTable(command.table);
 
     std::vector<std::string> columns;
@@ -277,6 +331,16 @@ QueryResult QueryExecutor::executeRollback() {
     return messageResult(true, "rolled back transaction");
 }
 
+QueryResult QueryExecutor::executePrepare(const PrepareStatement &command) {
+    preparedStatements_[command.name] = command.sql;
+    return messageResult(true, "prepared statement " + command.name);
+}
+
+QueryResult QueryExecutor::executePrepared(const ExecutePrepared &command) {
+    const auto sql = bindPreparedSql(command);
+    return execute(Parser{}.parse(sql));
+}
+
 std::vector<std::size_t> QueryExecutor::resolveProjection(const Select &command, const Table &table,
                                                           std::vector<std::string> &columns) const {
     std::vector<std::size_t> projection;
@@ -324,6 +388,53 @@ std::vector<Row> QueryExecutor::collectRows(const Select &command, const Table &
     return rows;
 }
 
+QueryResult QueryExecutor::executeJoinSelect(const Select &command) {
+    auto leftTable = requireTable(command.table);
+    auto rightTable = requireTable(command.join->table);
+    const auto leftJoinColumn = leftTable->columnIndex(command.join->leftColumn);
+    const auto rightJoinColumn = rightTable->columnIndex(command.join->rightColumn);
+    if (!leftJoinColumn || !rightJoinColumn) {
+        throw std::runtime_error("unknown join column");
+    }
+    if (!(command.columns.size() == 1 && command.columns.front() == "*")) {
+        throw std::runtime_error("joined SELECT currently supports only SELECT *");
+    }
+
+    QueryResult result;
+    result.message = "selected rows";
+    for (const auto &column : leftTable->schema()) {
+        result.columns.push_back(command.table + "." + column.name);
+    }
+    for (const auto &column : rightTable->schema()) {
+        result.columns.push_back(command.join->table + "." + column.name);
+    }
+
+    const auto leftRows = leftTable->rowsSnapshot();
+    const auto rightRows = rightTable->rowsSnapshot();
+    std::map<Value, std::vector<Row>> rightRowsByKey;
+    for (const auto &row : rightRows) {
+        rightRowsByKey[row[*rightJoinColumn]].push_back(row);
+    }
+
+    for (const auto &leftRow : leftRows) {
+        auto matchingRightRows = rightRowsByKey.find(leftRow[*leftJoinColumn]);
+        if (matchingRightRows == rightRowsByKey.end()) {
+            continue;
+        }
+        for (const auto &rightRow : matchingRightRows->second) {
+            Row joined;
+            joined.reserve(leftRow.size() + rightRow.size());
+            joined.insert(joined.end(), leftRow.begin(), leftRow.end());
+            joined.insert(joined.end(), rightRow.begin(), rightRow.end());
+            result.rows.push_back(std::move(joined));
+            if (command.limit && result.rows.size() >= *command.limit) {
+                return result;
+            }
+        }
+    }
+    return result;
+}
+
 bool QueryExecutor::matches(const Row &row, const Table &table, const Predicate &predicate) const {
     const auto index = table.columnIndex(predicate.column);
     if (!index) {
@@ -341,6 +452,35 @@ std::shared_ptr<Table> QueryExecutor::requireTable(std::string_view tableName) c
         throw std::runtime_error("unknown table");
     }
     return table;
+}
+
+std::string QueryExecutor::bindPreparedSql(const ExecutePrepared &command) const {
+    std::string sql;
+    {
+        std::shared_lock lock{mutex_};
+        auto prepared = preparedStatements_.find(command.name);
+        if (prepared == preparedStatements_.end()) {
+            throw std::runtime_error("unknown prepared statement");
+        }
+        sql = prepared->second;
+    }
+
+    std::ostringstream bound;
+    std::size_t parameterIndex = 0;
+    for (const char character : sql) {
+        if (character != '?') {
+            bound << character;
+            continue;
+        }
+        if (parameterIndex >= command.parameters.size()) {
+            throw std::runtime_error("not enough prepared statement parameters");
+        }
+        bound << sqlLiteral(command.parameters[parameterIndex++]);
+    }
+    if (parameterIndex != command.parameters.size()) {
+        throw std::runtime_error("too many prepared statement parameters");
+    }
+    return bound.str();
 }
 
 } // namespace theCityCRDB

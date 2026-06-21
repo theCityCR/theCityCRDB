@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <thread>
 
 namespace theCityCRDB {
 
@@ -138,6 +139,111 @@ TEST(ExecutionTests, FailedInsertDoesNotPolluteWal) {
     ASSERT_EQ(records.size(), 2U);
     EXPECT_EQ(records[0].operation, WalOperation::CreateDatabase);
     EXPECT_EQ(records[1].operation, WalOperation::CreateTable);
+
+    std::filesystem::remove_all(root);
+}
+
+TEST(ExecutionTests, ExecutesPreparedStatementsWithParameters) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_prepared_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+    QueryExecutor executor{root};
+
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING);")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\");")).success);
+    ASSERT_TRUE(
+        executor
+            .execute(parser.parse("PREPARE by_id AS \"SELECT name FROM Employees WHERE id = ?;\";"))
+            .success);
+
+    auto result = executor.execute(parser.parse("EXECUTE by_id VALUES (1);"));
+    ASSERT_EQ(result.rows.size(), 1U);
+    EXPECT_EQ(result.rows.front().front(), Value{std::string{"Alice"}});
+
+    std::filesystem::remove_all(root);
+}
+
+TEST(ExecutionTests, ExecutesHashJoin) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_join_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+    QueryExecutor executor{root};
+
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("CREATE TABLE Employees (id INT, name STRING, dept_id INT);"))
+            .success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("CREATE TABLE Departments (id INT, dept STRING);")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"Alice\", 10);")).success);
+    ASSERT_TRUE(
+        executor.execute(parser.parse("INSERT INTO Departments VALUES (10, \"Engineering\");"))
+            .success);
+
+    auto result = executor.execute(
+        parser.parse("SELECT * FROM Employees JOIN Departments ON dept_id = id LIMIT 1;"));
+    ASSERT_EQ(result.rows.size(), 1U);
+    ASSERT_EQ(result.columns.size(), 5U);
+    EXPECT_EQ(result.columns[0], "Employees.id");
+    EXPECT_EQ(result.columns[4], "Departments.dept");
+    EXPECT_EQ(result.rows.front()[1], Value{std::string{"Alice"}});
+    EXPECT_EQ(result.rows.front()[4], Value{std::string{"Engineering"}});
+
+    std::filesystem::remove_all(root);
+}
+
+TEST(ExecutionTests, AutomaticallyLoadsSavedDatabaseOnStartup) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_recovery_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+
+    {
+        QueryExecutor executor{root};
+        ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Employees (id INT);")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("INSERT INTO Employees VALUES (1);")).success);
+        ASSERT_TRUE(executor.execute(parser.parse("SAVE DATABASE;")).success);
+    }
+
+    QueryExecutor recovered{root};
+    auto result = recovered.execute(parser.parse("SELECT * FROM Employees;"));
+    ASSERT_EQ(result.rows.size(), 1U);
+    EXPECT_EQ(result.rows.front().front(), Value{1});
+
+    std::filesystem::remove_all(root);
+}
+
+TEST(ExecutionTests, SupportsConcurrentExecutorClients) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("theCityCRDB_executor_concurrency_test_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    Parser parser;
+    QueryExecutor executor{root};
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE DATABASE company;")).success);
+    ASSERT_TRUE(executor.execute(parser.parse("CREATE TABLE Events (id INT);")).success);
+
+    constexpr int threadCount = 4;
+    constexpr int insertsPerThread = 100;
+    std::vector<std::jthread> threads;
+    for (int thread = 0; thread < threadCount; ++thread) {
+        threads.emplace_back([thread, &executor] {
+            for (int i = 0; i < insertsPerThread; ++i) {
+                const int id = thread * insertsPerThread + i;
+                (void)executor.execute(Insert{"Events", {Value{id}}});
+            }
+        });
+    }
+    threads.clear();
+
+    auto result = executor.execute(parser.parse("SELECT * FROM Events;"));
+    EXPECT_EQ(result.rows.size(), static_cast<std::size_t>(threadCount * insertsPerThread));
 
     std::filesystem::remove_all(root);
 }
