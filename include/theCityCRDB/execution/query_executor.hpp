@@ -3,10 +3,14 @@
 #include "theCityCRDB/execution/query_result.hpp"
 #include "theCityCRDB/parser/ast.hpp"
 #include "theCityCRDB/persistence/storage_manager.hpp"
+#include "theCityCRDB/persistence/write_ahead_log.hpp"
+#include "theCityCRDB/planner/query_planner.hpp"
 #include "theCityCRDB/storage/database.hpp"
+#include "theCityCRDB/transaction/transaction_manager.hpp"
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace theCityCRDB {
@@ -41,6 +45,10 @@ private:
     std::shared_ptr<Database> database_;
     std::shared_ptr<Database> transactionSnapshot_;
     StorageManager storageManager_;
+    WriteAheadLog wal_;
+    QueryPlanner planner_;
+    TransactionManager transactionManager_;
+    std::optional<TransactionId> activeTransaction_;
 };
 
 }  // namespace theCityCRDB

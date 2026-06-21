@@ -29,7 +29,7 @@ QueryResult messageResult(bool success, std::string message) {
 }  // namespace
 
 QueryExecutor::QueryExecutor(std::filesystem::path storageRoot)
-    : storageManager_(std::move(storageRoot)) {}
+    : storageManager_(storageRoot), wal_(storageRoot / "theCityCRDB.wal") {}
 
 QueryResult QueryExecutor::execute(const Query& query) {
     return std::visit(
@@ -77,6 +77,7 @@ std::shared_ptr<Database> QueryExecutor::currentDatabase() const noexcept {
 }
 
 QueryResult QueryExecutor::executeCreateDatabase(const CreateDatabase& command) {
+    (void)wal_.append(WalOperation::CreateDatabase, command.name);
     database_ = std::make_shared<Database>(command.name);
     return messageResult(true, "created database " + command.name);
 }
@@ -85,6 +86,7 @@ QueryResult QueryExecutor::executeCreateTable(const CreateTable& command) {
     if (!database_) {
         return messageResult(false, "no active database");
     }
+    (void)wal_.append(WalOperation::CreateTable, command.name);
     const bool created = database_->createTable(command.name, command.columns);
     return messageResult(created, created ? "created table " + command.name : "table already exists");
 }
@@ -93,6 +95,7 @@ QueryResult QueryExecutor::executeDropTable(const DropTable& command) {
     if (!database_) {
         return messageResult(false, "no active database");
     }
+    (void)wal_.append(WalOperation::DropTable, command.name);
     const bool dropped = database_->dropTable(command.name);
     return messageResult(dropped, dropped ? "dropped table " + command.name : "unknown table");
 }
@@ -101,6 +104,7 @@ QueryResult QueryExecutor::executeRenameTable(const RenameTable& command) {
     if (!database_) {
         return messageResult(false, "no active database");
     }
+    (void)wal_.append(WalOperation::RenameTable, command.oldName + "->" + command.newName);
     const bool renamed = database_->renameTable(command.oldName, command.newName);
     return messageResult(renamed, renamed ? "renamed table " + command.oldName : "rename failed");
 }
@@ -120,6 +124,7 @@ QueryResult QueryExecutor::executeListTables() {
 
 QueryResult QueryExecutor::executeInsert(const Insert& command) {
     auto table = requireTable(command.table);
+    (void)wal_.append(WalOperation::Insert, command.table);
     table->insert(command.values);
     return messageResult(true, "inserted 1 row");
 }
@@ -147,8 +152,14 @@ QueryResult QueryExecutor::executeSelect(const Select& command) {
 
     std::vector<Row> filtered;
     bool usedIndex = false;
-    if (command.where && command.where->op == ComparisonOperator::Equal) {
+    const auto plan = planner_.planSelect(command, *table);
+    if (command.where && plan.accessPath == AccessPath::HashIndexLookup) {
         if (auto rowIds = table->indexedLookup(command.where->column, command.where->value)) {
+            usedIndex = true;
+            filtered = table->rowsById(*rowIds);
+        }
+    } else if (command.where && plan.accessPath == AccessPath::OrderedIndexRange) {
+        if (auto rowIds = table->orderedLookup(command.where->column, command.where->op, command.where->value)) {
             usedIndex = true;
             filtered = table->rowsById(*rowIds);
         }
@@ -205,6 +216,7 @@ QueryResult QueryExecutor::executeUpdate(const Update& command) {
         if (command.where && !matches(snapshot[rowId], *table, *command.where)) {
             continue;
         }
+        (void)wal_.append(WalOperation::Update, command.table + "." + command.column);
         if (table->update(rowId, *target, command.value)) {
             ++count;
         }
@@ -221,6 +233,7 @@ QueryResult QueryExecutor::executeDelete(const Delete& command) {
         if (command.where && !matches(snapshot[actual], *table, *command.where)) {
             continue;
         }
+        (void)wal_.append(WalOperation::Delete, command.table);
         if (table->erase(actual)) {
             ++count;
         }
@@ -230,6 +243,7 @@ QueryResult QueryExecutor::executeDelete(const Delete& command) {
 
 QueryResult QueryExecutor::executeCreateIndex(const CreateIndex& command) {
     auto table = requireTable(command.table);
+    (void)wal_.append(WalOperation::CreateIndex, command.table + "." + command.column);
     const bool created = table->createIndex(command.name, command.column);
     return messageResult(created, created ? "created index " + command.name : "index creation failed");
 }
@@ -238,6 +252,7 @@ QueryResult QueryExecutor::executeSaveDatabase() {
     if (!database_) {
         return messageResult(false, "no active database");
     }
+    (void)wal_.append(WalOperation::SaveDatabase, database_->name());
     storageManager_.saveDatabase(*database_);
     return messageResult(true, "saved database " + database_->name());
 }
@@ -261,6 +276,7 @@ QueryResult QueryExecutor::executeBegin() {
     if (transactionSnapshot_) {
         return messageResult(false, "transaction already active");
     }
+    activeTransaction_ = transactionManager_.begin().id;
     transactionSnapshot_ = database_->clone();
     return messageResult(true, "began transaction");
 }
@@ -269,6 +285,8 @@ QueryResult QueryExecutor::executeCommit() {
     if (!transactionSnapshot_) {
         return messageResult(false, "no active transaction");
     }
+    transactionManager_.commit(*activeTransaction_);
+    activeTransaction_.reset();
     transactionSnapshot_.reset();
     return messageResult(true, "committed transaction");
 }
@@ -277,6 +295,8 @@ QueryResult QueryExecutor::executeRollback() {
     if (!transactionSnapshot_) {
         return messageResult(false, "no active transaction");
     }
+    transactionManager_.rollback(*activeTransaction_);
+    activeTransaction_.reset();
     database_ = transactionSnapshot_;
     transactionSnapshot_.reset();
     return messageResult(true, "rolled back transaction");

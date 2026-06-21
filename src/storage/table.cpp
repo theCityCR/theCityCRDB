@@ -74,6 +74,38 @@ std::optional<std::vector<RowId>> Table::indexedLookup(std::string_view column, 
     return std::nullopt;
 }
 
+std::optional<std::vector<RowId>> Table::orderedLookup(std::string_view column,
+                                                       ComparisonOperator op,
+                                                       const Value& value) const {
+    std::shared_lock lock{mutex_};
+    for (const auto& [indexName, columnIndex] : indexColumns_) {
+        if (schema_[columnIndex].name != column) {
+            continue;
+        }
+        if (op == ComparisonOperator::Equal) {
+            return orderedIndexes_.at(indexName).find(value);
+        }
+        if (op == ComparisonOperator::Greater) {
+            return orderedIndexes_.at(indexName).greaterThan(value);
+        }
+        if (op == ComparisonOperator::Less) {
+            return orderedIndexes_.at(indexName).lessThan(value);
+        }
+    }
+    return std::nullopt;
+}
+
+bool Table::hasIndex(std::string_view column) const {
+    std::shared_lock lock{mutex_};
+    return std::ranges::any_of(indexColumns_, [&](const auto& item) {
+        return schema_[item.second].name == column;
+    });
+}
+
+bool Table::hasOrderedIndex(std::string_view column) const {
+    return hasIndex(column);
+}
+
 std::vector<std::string> Table::listIndexes() const {
     std::shared_lock lock{mutex_};
     std::vector<std::string> names;
@@ -100,6 +132,9 @@ RowId Table::insert(Row row) {
     rows_.push_back(std::move(row));
     const RowId rowId = rows_.size() - 1;
     for (auto& [name, index] : indexes_) {
+        index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
+    }
+    for (auto& [name, index] : orderedIndexes_) {
         index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
     }
     return rowId;
@@ -140,8 +175,10 @@ bool Table::createIndex(std::string name, std::string column) {
     }
     indexColumns_.emplace(name, *indexColumn);
     indexes_.try_emplace(name);
+    orderedIndexes_.try_emplace(name);
     for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
         indexes_.at(name).insert(rows_[rowId][*indexColumn], rowId);
+        orderedIndexes_.at(name).insert(rows_[rowId][*indexColumn], rowId);
     }
     return true;
 }
@@ -170,8 +207,14 @@ void Table::rebuildIndexes() {
     for (auto& [_, index] : indexes_) {
         index.clear();
     }
+    for (auto& [_, index] : orderedIndexes_) {
+        index.clear();
+    }
     for (RowId rowId = 0; rowId < rows_.size(); ++rowId) {
         for (auto& [name, index] : indexes_) {
+            index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
+        }
+        for (auto& [name, index] : orderedIndexes_) {
             index.insert(rows_[rowId][indexColumns_.at(name)], rowId);
         }
     }

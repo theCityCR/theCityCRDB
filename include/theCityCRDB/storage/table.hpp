@@ -1,6 +1,8 @@
 #pragma once
 
 #include "theCityCRDB/common/value.hpp"
+#include "theCityCRDB/common/comparison_operator.hpp"
+#include "theCityCRDB/indexing/btree_index.hpp"
 #include "theCityCRDB/indexing/hash_index.hpp"
 #include "theCityCRDB/storage/row.hpp"
 
@@ -26,6 +28,11 @@ public:
     [[nodiscard]] std::vector<RowId> findIndexed(std::string_view column, const Value& value) const;
     [[nodiscard]] std::optional<std::vector<RowId>> indexedLookup(std::string_view column,
                                                                   const Value& value) const;
+    [[nodiscard]] std::optional<std::vector<RowId>> orderedLookup(std::string_view column,
+                                                                  ComparisonOperator op,
+                                                                  const Value& value) const;
+    [[nodiscard]] bool hasIndex(std::string_view column) const;
+    [[nodiscard]] bool hasOrderedIndex(std::string_view column) const;
     [[nodiscard]] std::vector<std::string> listIndexes() const;
     [[nodiscard]] std::vector<std::pair<std::string, std::string>> indexDefinitions() const;
 
@@ -44,6 +51,7 @@ private:
     std::vector<Row> rows_;
     std::map<std::string, std::size_t> indexColumns_;
     std::map<std::string, HashIndex> indexes_;
+    std::map<std::string, BTreeIndex> orderedIndexes_;
     mutable std::shared_mutex mutex_;
 };
 

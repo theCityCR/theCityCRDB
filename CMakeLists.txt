@@ -27,11 +27,17 @@ add_library(theCityCRDB
     src/parser/parser.cpp
     src/parser/tokenizer.cpp
     src/storage/database.cpp
+    src/storage/buffer_pool.cpp
     src/storage/table.cpp
+    src/indexing/btree_index.cpp
     src/indexing/hash_index.cpp
     src/execution/query_executor.cpp
+    src/planner/query_planner.cpp
     src/concurrency/lock_manager.cpp
     src/persistence/storage_manager.cpp
+    src/persistence/write_ahead_log.cpp
+    src/transaction/mvcc_row_store.cpp
+    src/transaction/transaction_manager.cpp
 )
 
 add_library(theCityCRDB::theCityCRDB ALIAS theCityCRDB)
@@ -89,6 +95,7 @@ if(THECITYCRDB_BUILD_TESTS)
         tests/storage_tests.cpp
         tests/index_tests.cpp
         tests/execution_tests.cpp
+        tests/deep_feature_tests.cpp
     )
     target_link_libraries(theCityCRDB_tests PRIVATE theCityCRDB::theCityCRDB GTest::gtest_main)
     include(GoogleTest)

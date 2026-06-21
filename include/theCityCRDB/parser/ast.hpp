@@ -1,5 +1,6 @@
 #pragma once
 
+#include "theCityCRDB/common/comparison_operator.hpp"
 #include "theCityCRDB/common/value.hpp"
 
 #include <optional>
@@ -8,12 +9,6 @@
 #include <vector>
 
 namespace theCityCRDB {
-
-enum class ComparisonOperator {
-    Equal,
-    Greater,
-    Less,
-};
 
 struct Predicate {
     std::string column;
