@@ -1,10 +1,10 @@
-#include "theCityCRDB/indexing/hash_index.hpp"
+#include "VertexDB/indexing/hash_index.hpp"
 
 #include <algorithm>
 #include <mutex>
 #include <shared_mutex>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 std::size_t HashIndex::ValueHash::operator()(const Value &value) const {
     if (value.isNull()) {
@@ -58,4 +58,4 @@ std::size_t HashIndex::size() const {
     return entries_.size();
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

@@ -1,14 +1,14 @@
-#include "theCityCRDB/storage/table.hpp"
+#include "VertexDB/storage/table.hpp"
 
-#include "theCityCRDB/execution/query_executor.hpp"
-#include "theCityCRDB/parser/parser.hpp"
+#include "VertexDB/execution/query_executor.hpp"
+#include "VertexDB/parser/parser.hpp"
 
 #include <benchmark/benchmark.h>
 
 #include <future>
 #include <thread>
 
-namespace theCityCRDB {
+namespace VertexDB {
 namespace {
 
 void BM_InsertRows(benchmark::State &state) {
@@ -149,4 +149,4 @@ BENCHMARK(BM_ConcurrentPointLookups)
                                : std::thread::hardware_concurrency()));
 
 } // namespace
-} // namespace theCityCRDB
+} // namespace VertexDB

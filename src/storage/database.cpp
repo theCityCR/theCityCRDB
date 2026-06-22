@@ -1,10 +1,10 @@
-#include "theCityCRDB/storage/database.hpp"
+#include "VertexDB/storage/database.hpp"
 
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 Database::Database(std::string name) : name_(std::move(name)) {
     if (name_.empty()) {
@@ -97,4 +97,4 @@ std::shared_ptr<Database> Database::clone() const {
     return copy;
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

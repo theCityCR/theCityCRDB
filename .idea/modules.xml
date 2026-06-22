@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/theCityCRDB.iml" filepath="$PROJECT_DIR$/.idea/theCityCRDB.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/VertexDB.iml" filepath="$PROJECT_DIR$/.idea/VertexDB.iml" />
     </modules>
   </component>
 </project>

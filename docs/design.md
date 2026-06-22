@@ -1,6 +1,6 @@
 # Design Status
 
-theCityCRDB is implemented as small, testable systems slices. The current codebase has moved past
+VertexDB is implemented as small, testable systems slices. The current codebase has moved past
 the initial scaffold and now includes working storage, parsing, execution, indexing, persistence,
 WAL recovery, transactions, tests, benchmarks, and CI.
 

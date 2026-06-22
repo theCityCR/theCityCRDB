@@ -1,6 +1,6 @@
-#include "theCityCRDB/execution/query_executor.hpp"
+#include "VertexDB/execution/query_executor.hpp"
 
-#include "theCityCRDB/parser/parser.hpp"
+#include "VertexDB/parser/parser.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace theCityCRDB {
+namespace VertexDB {
 namespace {
 
 bool compare(const Value &left, ComparisonOperator op, const Value &right) {
@@ -177,7 +177,7 @@ std::optional<std::size_t> resolveTableColumn(const Table &table, std::string_vi
 } // namespace
 
 QueryExecutor::QueryExecutor(std::filesystem::path storageRoot)
-    : storageManager_(storageRoot), wal_(storageRoot / "theCityCRDB.wal") {
+    : storageManager_(storageRoot), wal_(storageRoot / "VertexDB.wal") {
     recoverFromStorage();
 }
 
@@ -762,4 +762,4 @@ void QueryExecutor::appendWal(WalOperation operation, std::string payload) {
     (void)wal_.append(operation, std::move(payload));
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

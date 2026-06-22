@@ -1,6 +1,6 @@
 # SQL Subset
 
-theCityCRDB intentionally supports a small SQL subset first.
+VertexDB intentionally supports a small SQL subset first.
 
 ## Implemented
 

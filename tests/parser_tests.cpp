@@ -1,8 +1,8 @@
-#include "theCityCRDB/parser/parser.hpp"
+#include "VertexDB/parser/parser.hpp"
 
 #include <gtest/gtest.h>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 TEST(ParserTests, ParsesCreateTable) {
     Parser parser;
@@ -112,4 +112,4 @@ TEST(ParserTests, ParsesJoinAndPreparedStatements) {
     EXPECT_EQ(std::get<ExecutePrepared>(execute).parameters.size(), 1U);
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

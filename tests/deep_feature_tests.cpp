@@ -1,12 +1,12 @@
-#include "theCityCRDB/concurrency/lock_manager.hpp"
-#include "theCityCRDB/indexing/btree_index.hpp"
-#include "theCityCRDB/indexing/hash_index.hpp"
-#include "theCityCRDB/persistence/write_ahead_log.hpp"
-#include "theCityCRDB/planner/query_planner.hpp"
-#include "theCityCRDB/storage/buffer_pool.hpp"
-#include "theCityCRDB/storage/table.hpp"
-#include "theCityCRDB/transaction/mvcc_row_store.hpp"
-#include "theCityCRDB/transaction/transaction_manager.hpp"
+#include "VertexDB/concurrency/lock_manager.hpp"
+#include "VertexDB/indexing/btree_index.hpp"
+#include "VertexDB/indexing/hash_index.hpp"
+#include "VertexDB/persistence/write_ahead_log.hpp"
+#include "VertexDB/planner/query_planner.hpp"
+#include "VertexDB/storage/buffer_pool.hpp"
+#include "VertexDB/storage/table.hpp"
+#include "VertexDB/transaction/mvcc_row_store.hpp"
+#include "VertexDB/transaction/transaction_manager.hpp"
 
 #include <gtest/gtest.h>
 
@@ -14,7 +14,7 @@
 #include <filesystem>
 #include <future>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 TEST(DeepFeatureTests, BTreeIndexSupportsRangeLookup) {
     BTreeIndex index;
@@ -143,7 +143,7 @@ TEST(DeepFeatureTests, LockManagerAllowsSharedReadersAndBlocksWriters) {
 
 TEST(DeepFeatureTests, WriteAheadLogAppendsAndReadsRecords) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_wal_test_" +
+                      ("VertexDB_wal_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     const auto path = root / "test.wal";
 
@@ -163,7 +163,7 @@ TEST(DeepFeatureTests, WriteAheadLogAppendsAndReadsRecords) {
 
 TEST(DeepFeatureTests, WriteAheadLogContinuesLsnAfterReopen) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_wal_reopen_test_" +
+                      ("VertexDB_wal_reopen_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     const auto path = root / "test.wal";
 
@@ -239,4 +239,4 @@ TEST(DeepFeatureTests, TransactionManagerTracksCommitRollbackAndInvalidTransitio
     EXPECT_THROW(transactions.rollback(999), std::runtime_error);
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

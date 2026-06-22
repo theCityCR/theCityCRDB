@@ -1,12 +1,12 @@
-#include "theCityCRDB/execution/query_executor.hpp"
-#include "theCityCRDB/parser/parser.hpp"
+#include "VertexDB/execution/query_executor.hpp"
+#include "VertexDB/parser/parser.hpp"
 
 #include <iostream>
 #include <sstream>
 
 namespace {
 
-void printResult(const theCityCRDB::QueryResult &result) {
+void printResult(const VertexDB::QueryResult &result) {
     if (!result.message.empty()) {
         std::cout << result.message << '\n';
     }
@@ -30,11 +30,11 @@ void printResult(const theCityCRDB::QueryResult &result) {
 } // namespace
 
 int main() try {
-    theCityCRDB::Parser parser;
-    theCityCRDB::QueryExecutor executor;
+    VertexDB::Parser parser;
+    VertexDB::QueryExecutor executor;
 
-    std::cout << "theCityCRDB interactive shell. Type EXIT; to quit.\n";
-    for (std::string line; std::cout << "theCityCRDB> " && std::getline(std::cin, line);) {
+    std::cout << "VertexDB interactive shell. Type EXIT; to quit.\n";
+    for (std::string line; std::cout << "VertexDB> " && std::getline(std::cin, line);) {
         if (line.empty()) {
             continue;
         }

@@ -1,11 +1,11 @@
-#include "theCityCRDB/indexing/btree_index.hpp"
+#include "VertexDB/indexing/btree_index.hpp"
 
 #include <algorithm>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 BTreeIndex::BTreeIndex(std::size_t maxKeysPerLeaf) : maxKeysPerLeaf_(maxKeysPerLeaf) {
     if (maxKeysPerLeaf_ == 0) {
@@ -153,4 +153,4 @@ void BTreeIndex::rebuildLayout() {
     nodes_.push_back(std::move(root));
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

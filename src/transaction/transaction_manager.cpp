@@ -1,8 +1,8 @@
-#include "theCityCRDB/transaction/transaction_manager.hpp"
+#include "VertexDB/transaction/transaction_manager.hpp"
 
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 Transaction TransactionManager::begin() {
     Transaction transaction{nextId_++, TransactionState::Active};
@@ -34,4 +34,4 @@ std::optional<Transaction> TransactionManager::find(TransactionId id) const {
     return it->second;
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

@@ -1,4 +1,4 @@
-#include "theCityCRDB/common/value.hpp"
+#include "VertexDB/common/value.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 Value::Value(std::int64_t value) : data_(value) {}
 
@@ -92,4 +92,4 @@ std::optional<ColumnType> columnTypeFromString(std::string_view text) {
     return std::nullopt;
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

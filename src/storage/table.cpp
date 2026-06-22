@@ -1,11 +1,11 @@
-#include "theCityCRDB/storage/table.hpp"
+#include "VertexDB/storage/table.hpp"
 
 #include <algorithm>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 Table::Table(std::string name, std::vector<Column> schema)
     : name_(std::move(name)), schema_(std::move(schema)), rowStore_(makePageRowStore()) {
@@ -250,4 +250,4 @@ void Table::rebuildIndexes() {
     }
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

@@ -1,8 +1,8 @@
-#include "theCityCRDB/indexing/hash_index.hpp"
+#include "VertexDB/indexing/hash_index.hpp"
 
 #include <gtest/gtest.h>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 TEST(IndexTests, FindsInsertedRowIds) {
     HashIndex index;
@@ -15,4 +15,4 @@ TEST(IndexTests, FindsInsertedRowIds) {
     EXPECT_EQ(rowIds[1], 8U);
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

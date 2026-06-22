@@ -1,9 +1,9 @@
-#include "theCityCRDB/parser/tokenizer.hpp"
+#include "VertexDB/parser/tokenizer.hpp"
 
 #include <cctype>
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 namespace {
 
 bool isIdentifierStart(char ch) {
@@ -102,4 +102,4 @@ std::vector<Token> Tokenizer::tokenize(std::string_view sql) const {
     return tokens;
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

@@ -1,6 +1,6 @@
-#include "theCityCRDB/execution/query_executor.hpp"
-#include "theCityCRDB/parser/parser.hpp"
-#include "theCityCRDB/persistence/write_ahead_log.hpp"
+#include "VertexDB/execution/query_executor.hpp"
+#include "VertexDB/parser/parser.hpp"
+#include "VertexDB/persistence/write_ahead_log.hpp"
 
 #include <gtest/gtest.h>
 
@@ -8,12 +8,12 @@
 #include <filesystem>
 #include <string>
 
-namespace theCityCRDB {
+namespace VertexDB {
 namespace {
 
 std::filesystem::path testRoot(std::string_view name) {
     return std::filesystem::temp_directory_path() /
-           (std::string{"theCityCRDB_regression_"} + std::string{name} + "_" +
+           (std::string{"VertexDB_regression_"} + std::string{name} + "_" +
             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
 }
 
@@ -35,7 +35,7 @@ TEST(RegressionTests, InvalidMultiRowInsertIsAtomicAndDoesNotWriteWalRecord) {
     auto result = executor.execute(parser.parse("SELECT * FROM Employees;"));
     EXPECT_TRUE(result.rows.empty());
 
-    const auto records = WriteAheadLog{root / "theCityCRDB.wal"}.readAll();
+    const auto records = WriteAheadLog{root / "VertexDB.wal"}.readAll();
     ASSERT_EQ(records.size(), 2U);
     EXPECT_EQ(records[0].operation, WalOperation::CreateDatabase);
     EXPECT_EQ(records[1].operation, WalOperation::CreateTable);
@@ -54,7 +54,7 @@ TEST(RegressionTests, SaveCheckpointsWalBeforePostSaveMutations) {
     ASSERT_TRUE(executor.execute(parser.parse("SAVE DATABASE;")).success);
     ASSERT_TRUE(executor.execute(parser.parse("INSERT INTO Events VALUES (2);")).success);
 
-    const auto records = WriteAheadLog{root / "theCityCRDB.wal"}.readAll();
+    const auto records = WriteAheadLog{root / "VertexDB.wal"}.readAll();
     ASSERT_EQ(records.size(), 1U);
     EXPECT_EQ(records.front().operation, WalOperation::Insert);
 
@@ -155,4 +155,4 @@ TEST(RegressionTests, NullableUpdatesAcceptNullAndStrictUpdatesRejectNull) {
     std::filesystem::remove_all(root);
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

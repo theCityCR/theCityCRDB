@@ -1,8 +1,8 @@
-#include "theCityCRDB/storage/buffer_pool.hpp"
+#include "VertexDB/storage/buffer_pool.hpp"
 
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 BufferPool::BufferPool(std::size_t capacity) : capacity_(capacity) {
     if (capacity_ == 0) {
@@ -47,4 +47,4 @@ void BufferPool::evictIfNeeded() {
     }
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

@@ -1,6 +1,6 @@
 # Testing Strategy
 
-theCityCRDB uses three levels of automated testing:
+VertexDB uses three levels of automated testing:
 
 - Unit tests for parser, storage, indexes, persistence primitives, planner, and transaction helpers.
 - Execution tests for end-to-end SQL behavior through `QueryExecutor`.
@@ -19,7 +19,7 @@ deep feature, and regression tests. The latest local coverage run reported 85.77
 test binary. Override it for local experiments with:
 
 ```sh
-THECITYCRDB_COVERAGE_MIN=90 scripts/run-coverage.sh
+VERTEXDB_COVERAGE_MIN=90 scripts/run-coverage.sh
 ```
 
 ## Regression Test Policy
@@ -44,7 +44,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 scripts/run-sanitizers.sh
 scripts/run-coverage.sh
-cmake -S . -B build-benchmark -DTHECITYCRDB_BUILD_BENCHMARKS=ON
+cmake -S . -B build-benchmark -DVERTEXDB_BUILD_TESTS=OFF -DVERTEXDB_BUILD_BENCHMARKS=ON
 cmake --build build-benchmark
 ```
 

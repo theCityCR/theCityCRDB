@@ -1,8 +1,8 @@
-#include "theCityCRDB/transaction/mvcc_row_store.hpp"
+#include "VertexDB/transaction/mvcc_row_store.hpp"
 
 #include <algorithm>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 void MVCCRowStore::write(RowId rowId, Row row, TransactionId transactionId) {
     versions_[rowId].push_back({transactionId, std::nullopt, std::move(row)});
@@ -65,4 +65,4 @@ std::size_t MVCCRowStore::versionCount(RowId rowId) const {
     return it->second.size();
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

@@ -1,11 +1,11 @@
-#include "theCityCRDB/storage/database.hpp"
-#include "theCityCRDB/storage/row_store.hpp"
+#include "VertexDB/storage/database.hpp"
+#include "VertexDB/storage/row_store.hpp"
 
 #include <gtest/gtest.h>
 #include <thread>
 #include <vector>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 TEST(StorageTests, CreatesTableAndInsertsTypedRows) {
     Database database{"company"};
@@ -124,4 +124,4 @@ TEST(StorageTests, SupportsConcurrentInserts) {
     EXPECT_EQ(table.rowCount(), static_cast<std::size_t>(threadCount * insertsPerThread));
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

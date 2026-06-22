@@ -1,10 +1,10 @@
-#include "theCityCRDB/persistence/write_ahead_log.hpp"
+#include "VertexDB/persistence/write_ahead_log.hpp"
 
 #include <algorithm>
 #include <fstream>
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 namespace {
 
 constexpr std::uint32_t kWalMagic = 0x54435741; // TCWA
@@ -97,4 +97,4 @@ std::uint64_t WriteAheadLog::nextLsn() {
     return next;
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

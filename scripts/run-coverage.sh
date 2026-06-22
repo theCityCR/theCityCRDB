@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 
-MIN_COVERAGE="${THECITYCRDB_COVERAGE_MIN:-85}"
+MIN_COVERAGE="${VERTEXDB_COVERAGE_MIN:-85}"
 PROJECT_ROOT="$(pwd)"
 
-cmake -S . -B build-coverage -DTHECITYCRDB_ENABLE_COVERAGE=ON -DTHECITYCRDB_BUILD_TESTS=ON
+cmake -S . -B build-coverage -DVERTEXDB_ENABLE_COVERAGE=ON -DVERTEXDB_BUILD_TESTS=ON
 find build-coverage -name '*.gcda' -delete
 cmake --build build-coverage
 find build-coverage -name '*.gcda' -delete
@@ -15,7 +15,7 @@ trap 'rm -rf "$coverage_dir"' EXIT
 
 for source in "$PROJECT_ROOT"/src/*/*.cpp; do
     relative_source="${source#$PROJECT_ROOT/}"
-    notes_file="$PROJECT_ROOT/build-coverage/CMakeFiles/theCityCRDB.dir/$relative_source.gcno"
+    notes_file="$PROJECT_ROOT/build-coverage/CMakeFiles/VertexDB.dir/$relative_source.gcno"
     if [ -f "$notes_file" ]; then
         (
             cd "$coverage_dir"

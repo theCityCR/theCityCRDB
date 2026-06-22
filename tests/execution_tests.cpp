@@ -1,6 +1,6 @@
-#include "theCityCRDB/execution/query_executor.hpp"
-#include "theCityCRDB/parser/parser.hpp"
-#include "theCityCRDB/persistence/write_ahead_log.hpp"
+#include "VertexDB/execution/query_executor.hpp"
+#include "VertexDB/parser/parser.hpp"
+#include "VertexDB/persistence/write_ahead_log.hpp"
 
 #include <gtest/gtest.h>
 
@@ -8,7 +8,7 @@
 #include <filesystem>
 #include <thread>
 
-namespace theCityCRDB {
+namespace VertexDB {
 
 TEST(ExecutionTests, InsertsAndSelectsRows) {
     Parser parser;
@@ -101,7 +101,7 @@ TEST(ExecutionTests, TransactionalIndexedReadsUseMvccBoundary) {
 
 TEST(ExecutionTests, SavesAndLoadsDatabase) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_test_" +
+                      ("VertexDB_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
 
@@ -128,7 +128,7 @@ TEST(ExecutionTests, SavesAndLoadsDatabase) {
 
 TEST(ExecutionTests, FailedMetadataOperationsDoNotPolluteWal) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_failed_wal_test_" +
+                      ("VertexDB_failed_wal_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
     QueryExecutor executor{root};
@@ -138,7 +138,7 @@ TEST(ExecutionTests, FailedMetadataOperationsDoNotPolluteWal) {
     EXPECT_FALSE(executor.execute(parser.parse("CREATE TABLE Employees (id INT);")).success);
     EXPECT_FALSE(executor.execute(parser.parse("DROP TABLE Missing;")).success);
 
-    WriteAheadLog wal{root / "theCityCRDB.wal"};
+    WriteAheadLog wal{root / "VertexDB.wal"};
     const auto records = wal.readAll();
     ASSERT_EQ(records.size(), 2U);
     EXPECT_EQ(records[0].operation, WalOperation::CreateDatabase);
@@ -149,7 +149,7 @@ TEST(ExecutionTests, FailedMetadataOperationsDoNotPolluteWal) {
 
 TEST(ExecutionTests, FailedInsertDoesNotPolluteWal) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_failed_insert_wal_test_" +
+                      ("VertexDB_failed_insert_wal_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
     QueryExecutor executor{root};
@@ -160,7 +160,7 @@ TEST(ExecutionTests, FailedInsertDoesNotPolluteWal) {
         (void)executor.execute(parser.parse("INSERT INTO Employees VALUES (1, \"extra\");")),
         std::invalid_argument);
 
-    WriteAheadLog wal{root / "theCityCRDB.wal"};
+    WriteAheadLog wal{root / "VertexDB.wal"};
     const auto records = wal.readAll();
     ASSERT_EQ(records.size(), 2U);
     EXPECT_EQ(records[0].operation, WalOperation::CreateDatabase);
@@ -171,7 +171,7 @@ TEST(ExecutionTests, FailedInsertDoesNotPolluteWal) {
 
 TEST(ExecutionTests, ExecutesPreparedStatementsWithParameters) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_prepared_test_" +
+                      ("VertexDB_prepared_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
     QueryExecutor executor{root};
@@ -195,7 +195,7 @@ TEST(ExecutionTests, ExecutesPreparedStatementsWithParameters) {
 
 TEST(ExecutionTests, ExecutesMultiRowInsertCompoundPredicatesAndNullPersistence) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_sql_surface_test_" +
+                      ("VertexDB_sql_surface_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
 
@@ -231,7 +231,7 @@ TEST(ExecutionTests, ExecutesMultiRowInsertCompoundPredicatesAndNullPersistence)
 
 TEST(ExecutionTests, ExecutesHashJoin) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_join_test_" +
+                      ("VertexDB_join_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
     QueryExecutor executor{root};
@@ -262,7 +262,7 @@ TEST(ExecutionTests, ExecutesHashJoin) {
 
 TEST(ExecutionTests, ExecutesProjectedQualifiedJoinWithFilteringAndOrdering) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_projected_join_test_" +
+                      ("VertexDB_projected_join_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
     QueryExecutor executor{root};
@@ -297,7 +297,7 @@ TEST(ExecutionTests, ExecutesProjectedQualifiedJoinWithFilteringAndOrdering) {
 
 TEST(ExecutionTests, AutomaticallyLoadsSavedDatabaseOnStartup) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_recovery_test_" +
+                      ("VertexDB_recovery_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
 
@@ -319,7 +319,7 @@ TEST(ExecutionTests, AutomaticallyLoadsSavedDatabaseOnStartup) {
 
 TEST(ExecutionTests, ReplaysWalChangesAfterLatestSavedSnapshot) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_wal_recovery_after_save_test_" +
+                      ("VertexDB_wal_recovery_after_save_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
 
@@ -343,7 +343,7 @@ TEST(ExecutionTests, ReplaysWalChangesAfterLatestSavedSnapshot) {
 
 TEST(ExecutionTests, ReplaysWalWhenNoSnapshotExists) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_wal_only_recovery_test_" +
+                      ("VertexDB_wal_only_recovery_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
 
@@ -366,7 +366,7 @@ TEST(ExecutionTests, ReplaysWalWhenNoSnapshotExists) {
 
 TEST(ExecutionTests, SupportsConcurrentExecutorClients) {
     const auto root = std::filesystem::temp_directory_path() /
-                      ("theCityCRDB_executor_concurrency_test_" +
+                      ("VertexDB_executor_concurrency_test_" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     Parser parser;
     QueryExecutor executor{root};
@@ -394,4 +394,4 @@ TEST(ExecutionTests, SupportsConcurrentExecutorClients) {
     std::filesystem::remove_all(root);
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

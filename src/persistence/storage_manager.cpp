@@ -1,10 +1,10 @@
-#include "theCityCRDB/persistence/storage_manager.hpp"
+#include "VertexDB/persistence/storage_manager.hpp"
 
 #include <cstdint>
 #include <fstream>
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 namespace {
 
 constexpr std::string_view kMagic = "TCRDB001";
@@ -233,4 +233,4 @@ bool StorageManager::metadataExists(std::string_view databaseName) const {
     return std::filesystem::exists(pathFor(root_, databaseName));
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

@@ -1,8 +1,8 @@
-#include "theCityCRDB/planner/query_planner.hpp"
+#include "VertexDB/planner/query_planner.hpp"
 
 #include <algorithm>
 
-namespace theCityCRDB {
+namespace VertexDB {
 namespace {
 
 const Predicate *simpleComparison(const std::optional<Predicate> &predicate) {
@@ -45,4 +45,4 @@ QueryPlan QueryPlanner::planSelect(const Select &query, const Table &table) cons
     return plan;
 }
 
-} // namespace theCityCRDB
+} // namespace VertexDB

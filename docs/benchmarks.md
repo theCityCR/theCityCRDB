@@ -17,14 +17,14 @@ storage and access paths.
 Build the benchmark target with:
 
 ```sh
-cmake -S . -B build-benchmark -DTHECITYCRDB_BUILD_BENCHMARKS=ON
+cmake -S . -B build-benchmark -DVERTEXDB_BUILD_TESTS=OFF -DVERTEXDB_BUILD_BENCHMARKS=ON
 cmake --build build-benchmark
 ```
 
 Run it with:
 
 ```sh
-./build-benchmark/theCityCRDB_benchmarks
+./build-benchmark/VertexDB_benchmarks
 ```
 
 ## Reporting

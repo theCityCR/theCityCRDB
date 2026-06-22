@@ -1,8 +1,8 @@
-#include "theCityCRDB/storage/row_store.hpp"
+#include "VertexDB/storage/row_store.hpp"
 
 #include <stdexcept>
 
-namespace theCityCRDB {
+namespace VertexDB {
 namespace {
 
 template <typename T> void appendBytes(std::vector<std::byte> &bytes, const T &value) {
@@ -181,4 +181,4 @@ Page PageRowStore::serializePage(PageId pageId, const std::vector<Row> &rows) co
 
 std::unique_ptr<RowStore> makePageRowStore() { return std::make_unique<PageRowStore>(); }
 
-} // namespace theCityCRDB
+} // namespace VertexDB
